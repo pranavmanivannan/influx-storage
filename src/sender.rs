@@ -9,6 +9,9 @@ struct Sender {
 /// to a channel. In the case the function cannot send data due to an error, it will print an
 /// error statement and allow the program to continue executing.
 impl Sender {
+
+    /// Sends data to a Rust channel so that other threads can acquire the data and
+    /// use it for their own purposes.
     fn send_data(&self, data: T) {
         match self.tx.send(data) {
             Ok(_) => {

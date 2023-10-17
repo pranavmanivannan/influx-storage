@@ -7,12 +7,16 @@
 struct Receiver {
     rx: Receiver<T>,
     buffer: std::Sync::Mutex<Vec<T>>,
+    buffer_capacity: i32,
 }
 
 /// The Receiver implementation consists of a receive data method which
 /// acquires the mutex on the Receiver buffer and adds data to it. If the 
 /// mutex is poisoned, we unpoison it before continuing.
 impl Receiver {
+
+    /// Receives data from a channel and adds it to a buffer. If the buffer is
+    /// over capacity, we upload the data to AWS.
     fn receive_data(&self) {
         loop {
             let data = self.rx.recv(); // gets data from channel
@@ -26,9 +30,15 @@ impl Receiver {
             });
 
             buffer.push(data); // pushes data to the buffer
+
+            if buffer.len() > buffer_capacity { // uploads data to aws if over buffer capacity
+                self.upload_data();
+            }
         }
     }
 
+    /// Uploads data to an AWS service by getting a lock on the buffer Mutex,
+    /// sending the data to AWS, then clearing the buffer for future use.
     fn upload_data(&self) {
         // acquire lock on buffer
         let mut buffer = self.buffer.lock().unwrap_or_else(|mut e| {
