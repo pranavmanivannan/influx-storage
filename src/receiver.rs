@@ -6,13 +6,14 @@
 /// buffer to add the data to.
 struct Receiver {
     rx: Receiver<T>,
-    buffer: std::Sync::Mutex<Vec<T>>,
+    buffer: Vec<T>,
     buffer_capacity: i32,
 }
 
-/// The Receiver implementation consists of a receive data method which
-/// acquires the mutex on the Receiver buffer and adds data to it. If the 
-/// mutex is poisoned, we unpoison it before continuing.
+/// The Receiver implementation consists of receive_data and upload_data
+/// methods. The receive_data method receives data from a Rust channel and pushes
+/// it to a buffer. The upload_data method uploads the data to an AWS service then
+/// clears it.
 impl Receiver {
 
     /// Receives data from a channel and adds it to a buffer. If the buffer is
@@ -22,12 +23,7 @@ impl Receiver {
             let data = self.rx.recv(); // gets data from channel
 
             // deals with getting a mutex
-            let mut buffer = self.buffer.lock().unwrap_or_else(|mut e| {
-                // log that mutex was poisoned, ask what logging crate we're using
-                self.buffer.clear_poison(); // clears mutex poisoning and adds mutex guard
-                let mut buffer = self.buffer.lock().unwrap();
-                buffer
-            });
+            let mut buffer = self.buffer;
 
             buffer.push(data); // pushes data to the buffer
 
@@ -37,16 +33,10 @@ impl Receiver {
         }
     }
 
-    /// Uploads data to an AWS service by getting a lock on the buffer Mutex,
-    /// sending the data to AWS, then clearing the buffer for future use.
+    /// Uploads data to an AWS service by getting the buffer, sending the
+    /// data to AWS, then clearing the buffer.
     fn upload_data(&self) {
-        // acquire lock on buffer
-        let mut buffer = self.buffer.lock().unwrap_or_else(|mut e| {
-                // log that mutex was poisoned
-                self.buffer.clear_poison();
-                let mut buffer = self.buffer.lock().unwrap();
-                buffer
-            });
+        let mut buffer = self.buffer;
 
         // code that uploads to aws and stuff
 
