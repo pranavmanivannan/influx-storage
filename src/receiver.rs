@@ -1,45 +1,42 @@
-// need aws crates here
+// need aws/http crates here
 // need logging crates here, idt theres a built-in
 
-/// The Receiver struct can be used to receive data from a Rust channel.
-/// It has two attributes, a rx endpoint to receive data of type T and a 
-/// buffer to add the data to.
-struct Receiver {
-    rx: Receiver<T>,
-    buffer: Vec<T>,
-    buffer_capacity: i32,
+use std::sync::mpsc;
+
+use serde_json::json;
+
+use crate::data::Data;
+
+pub struct Receiver {
+    pub rx: mpsc::Receiver<Data>,
+    pub buffer: Vec<Data>,
+    pub buffer_capacity: usize,
 }
 
-/// The Receiver implementation consists of receive_data and upload_data
-/// methods. The receive_data method receives data from a Rust channel and pushes
-/// it to a buffer. The upload_data method uploads the data to an AWS service then
-/// clears it.
+
 impl Receiver {
 
-    /// Receives data from a channel and adds it to a buffer. If the buffer is
-    /// over capacity, we upload the data to AWS.
-    fn receive_data(&self) {
+    fn receive_data(&mut self) {
         loop {
-            let data = self.rx.recv(); // gets data from channel
+            match self.rx.recv() {
+                Ok(data) => {
+                    // let json = json!(data).to_string();
+                    // self.buffer.push(json)
+                    self.buffer.push(data);
+                },
+                Err(e) => println!("Unable to receive data: {:?}", e),
+            }
 
-            // deals with getting a mutex
-            let mut buffer = self.buffer;
-
-            buffer.push(data); // pushes data to the buffer
-
-            if buffer.len() > buffer_capacity { // uploads data to aws if over buffer capacity
+            if self.buffer.len() > self.buffer_capacity { // uploads data to aws if over buffer capacity
                 self.upload_data();
             }
         }
     }
 
-    /// Uploads data to an AWS service by getting the buffer, sending the
-    /// data to AWS, then clearing the buffer.
-    fn upload_data(&self) {
-        let mut buffer = self.buffer;
+    fn upload_data(&mut self) {
 
         // code that uploads to aws and stuff
 
-        buffer.clear(); // clear buffer for repeated use
+        self.buffer.clear(); // clear buffer for repeated use
     }
 }

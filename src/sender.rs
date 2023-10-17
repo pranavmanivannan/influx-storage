@@ -1,24 +1,20 @@
-/// The Sender struct can be used to send data to a Rust channel. 
-/// It has one attribute, a tx endpoint of type T which is the type of message to 
-/// be sent to the channel.
-struct Sender {
-    tx: Sender<T>
+use std::sync::mpsc;
+use crate::data::Data;
+
+pub struct Sender {
+    pub tx: mpsc::Sender<Data>,
 }
 
-/// The Sender implementation consists of a custom send method which takes data and sends it
-/// to a channel. In the case the function cannot send data due to an error, it will print an
-/// error statement and allow the program to continue executing.
-impl Sender {
 
-    /// Sends data to a Rust channel so that other threads can acquire the data and
-    /// use it for their own purposes.
-    fn send_data(&self, data: T) {
-        match self.tx.send(data) {
-            Ok(_) => {
-                
-            },
+impl Sender{
+
+    fn send_data(&self, data: &Data) {
+        let data = data.clone();
+        // let json = serde_json::to_string(data).unwrap(); // probably make an unwrap or else method here
+        match self.tx.send(data) { //maybe make this unwrap_or_else too
+            Ok(_) => {},
             Err(e) => {
-                // log that we were unable to send information
+                println!("Unable to send information to channel {:?}", e)
             }
         }
     }
