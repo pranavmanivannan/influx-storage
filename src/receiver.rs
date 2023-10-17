@@ -5,16 +5,16 @@ use std::sync::mpsc;
 
 use serde_json::json;
 
-use crate::data::Data;
+use crate::data;
 
-pub struct Receiver {
-    pub rx: mpsc::Receiver<Data>,
-    pub buffer: Vec<Data>,
+pub struct Receiver<T> {
+    pub rx: mpsc::Receiver<T>,
+    pub buffer: Vec<T>,
     pub buffer_capacity: usize,
 }
 
 
-impl Receiver {
+impl<Data> Receiver<Data> {
 
     fn receive_data(&mut self) {
         loop {

@@ -15,9 +15,3 @@ pub struct TradeDetail {
     tick: i32,
     
 }
-
-#[derive(Serialize, Deserialize, Clone)]
-pub enum Data {
-    MarketData(MarketData),
-    TradeDetail(TradeDetail),
-}
