@@ -1,12 +1,12 @@
-mod data;
 mod awsuploader;
 mod channelmessenger;
+mod data;
 
 use std::{sync::mpsc, thread, time::Duration};
 
-use data::MarketData;
 use awsuploader::AWSUploader;
 use channelmessenger::ChannelMessenger;
+use data::MarketData;
 
 fn main() {
     let (tx, rx) = mpsc::channel();

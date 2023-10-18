@@ -2,6 +2,7 @@ use std::sync::mpsc;
 
 use crate::data;
 
+/// A struct for setting a channel receiver endpoint and uploading the messages to AWS services.
 pub struct AWSUploader<T>
 where
     T: data::Data,
@@ -13,10 +14,14 @@ where
     pub table_name: String,
 }
 
+/// An implementation of AWSUploader with a constructor alongside methods for receiving messages from a channel
+/// and uploading a buffer to AWS.
 impl<T> AWSUploader<T>
 where
     T: data::Data,
 {
+    /// Basic constructor for AWSUploader that takes in a Receiver<T> endpoint, a buffer to hold messages from the 
+    /// channel, a buffer capacity, an AWS Timestream database name, and an AWS Timestream table name.
     pub fn new(
         endpoint: mpsc::Receiver<T>,
         buf: Vec<T>,
@@ -33,6 +38,8 @@ where
         }
     }
 
+    /// A custom receive method which will receive messages and push them to the buffer. If the buffer reaches capacity,
+    /// then it will call upload_data() to push the buffer's messages to AWS.
     pub fn receive_data(&mut self) {
         loop {
             match self.receiver_endpoint.recv() {
@@ -46,6 +53,9 @@ where
         }
     }
 
+    /// A method that will upload data to AWS. It contains checks to ensure that there is an existing Timestream 
+    /// database and table, and will create them if necessary. After uploading data, the buffer will be cleared so 
+    /// future messages can be added.
     fn upload_data(&mut self) {
         // user hyper.rs for the following steps:
         // 1) check if database exists, if not make one (use self.database)
