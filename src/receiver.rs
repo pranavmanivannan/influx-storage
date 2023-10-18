@@ -39,7 +39,7 @@ where
                 Ok(data) => self.buffer.push(data),
                 Err(e) => println!("Unable to receive data: {:?}", e),
             }
-            println!("Working");
+            println!("Working"); // for testing
             if self.buffer.len() > self.buffer_capacity {
                 self.upload_data();
             }

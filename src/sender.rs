@@ -10,7 +10,7 @@ where
 
 impl<T> Sender<T>
 where
-    T: data::Data,
+    T: data::Data + Clone,
 {
     pub fn new(endpoint: mpsc::Sender<T>) -> Sender<T> {
         Sender {
@@ -18,13 +18,12 @@ where
         }
     }
 
-    pub fn send_data(&self, data: T) {
-        match self.sender_endpoint.send(data) {
-            // need to conver to a clone //maybe make this unwrap_or_else too
-            Ok(_) => {}
-            Err(e) => {
-                println!("Unable to send information to channel {:?}", e)
-            }
+    pub fn send_data(&self, data: &T) {
+        let data_copy: T = data.clone();
+        match self.sender_endpoint.send(data_copy) {
+            Ok(_) => {},
+            Err(e) => println!("Unable to send information to channel {:?}", e),
         }
+        println!("Sender work"); // for testing
     }
 }

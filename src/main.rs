@@ -27,8 +27,8 @@ fn main() {
             ts: 2,
             tick: 3,
         };
-        sender.send_data(data);
-        thread::sleep(Duration::from_secs(1));
+        sender.send_data(&data);
+        thread::sleep(Duration::from_millis(100));
     });
 
     let receiver_handle = thread::spawn(move || loop {
