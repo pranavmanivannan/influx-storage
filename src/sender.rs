@@ -1,16 +1,21 @@
 use std::sync::mpsc;
 use crate::data;
 
-pub struct Sender<T> {
+pub struct Sender<T> 
+where 
+    T: data::Data
+{
     pub tx: mpsc::Sender<T>,
 }
 
 
-impl<T> Sender<T>{
+impl<T> Sender<T>
+where 
+    T: data::Data
+{
 
-    fn send_data(&self, data: &T) {
-        let data_clone = data.clone();
-        match self.tx.send(data) { // error here need to fix clone //maybe make this unwrap_or_else too
+    pub fn send_data(&self, data: T) {
+        match self.tx.send(data) { // need to conver to a clone //maybe make this unwrap_or_else too
             Ok(_) => {},
             Err(e) => {
                 println!("Unable to send information to channel {:?}", e)
@@ -18,3 +23,4 @@ impl<T> Sender<T>{
         }
     }
 }
+
