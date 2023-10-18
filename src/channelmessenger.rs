@@ -1,19 +1,19 @@
 use crate::data;
 use std::sync::mpsc;
 
-pub struct Sender<T>
+pub struct ChannelMessenger<T>
 where
     T: data::Data,
 {
     pub sender_endpoint: mpsc::Sender<T>,
 }
 
-impl<T> Sender<T>
+impl<T> ChannelMessenger<T>
 where
     T: data::Data + Clone,
 {
-    pub fn new(endpoint: mpsc::Sender<T>) -> Sender<T> {
-        Sender {
+    pub fn new(endpoint: mpsc::Sender<T>) -> ChannelMessenger<T> {
+        ChannelMessenger {
             sender_endpoint: endpoint,
         }
     }

@@ -2,7 +2,7 @@ use std::sync::mpsc;
 
 use crate::data;
 
-pub struct Receiver<T>
+pub struct AWSUploader<T>
 where
     T: data::Data,
 {
@@ -13,7 +13,7 @@ where
     pub table_name: String,
 }
 
-impl<T> Receiver<T>
+impl<T> AWSUploader<T>
 where
     T: data::Data,
 {
@@ -23,8 +23,8 @@ where
         buf_capacity: usize,
         db_name: String,
         tb_name: String,
-    ) -> Receiver<T> {
-        Receiver {
+    ) -> AWSUploader<T> {
+        AWSUploader {
             receiver_endpoint: endpoint,
             buffer: buf,
             buffer_capacity: buf_capacity,

@@ -1,19 +1,19 @@
 mod data;
-mod receiver;
-mod sender;
+mod awsuploader;
+mod channelmessenger;
 
 use std::{sync::mpsc, thread, time::Duration};
 
 use data::MarketData;
-use receiver::Receiver;
-use sender::Sender;
+use awsuploader::AWSUploader;
+use channelmessenger::ChannelMessenger;
 
 fn main() {
     let (tx, rx) = mpsc::channel();
 
-    let sender = Sender::new(tx);
+    let sender = ChannelMessenger::new(tx);
 
-    let mut receiver = Receiver::new(
+    let mut receiver = AWSUploader::new(
         rx,
         vec![],
         100,
