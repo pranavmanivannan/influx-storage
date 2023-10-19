@@ -1,3 +1,4 @@
+use hyper::Client;
 use std::sync::mpsc;
 
 use crate::data;
@@ -20,7 +21,7 @@ impl<T> AWSUploader<T>
 where
     T: data::Data,
 {
-    /// Basic constructor for AWSUploader that takes in a Receiver<T> endpoint, a buffer to hold messages from the 
+    /// Basic constructor for AWSUploader that takes in a Receiver<T> endpoint, a buffer to hold messages from the
     /// channel, a buffer capacity, an AWS Timestream database name, and an AWS Timestream table name.
     pub fn new(
         endpoint: mpsc::Receiver<T>,
@@ -53,14 +54,21 @@ where
         }
     }
 
-    /// A method that will upload data to AWS. It contains checks to ensure that there is an existing Timestream 
-    /// database and table, and will create them if necessary. After uploading data, the buffer will be cleared so 
+    /// A method that will upload data to AWS. It contains checks to ensure that there is an existing Timestream
+    /// database and table, and will create them if necessary. After uploading data, the buffer will be cleared so
     /// future messages can be added.
     fn upload_data(&mut self) {
         // user hyper.rs for the following steps:
         // 1) check if database exists, if not make one (use self.database)
         // 2) check if table in database exists, if not make one (use self.table)
         // 3) upload data to AWS
+
+        let client = Client::new();
+
+        let resp = client
+            .get("http://example.com".parse().unwrap());
+
+        println!("Response: {:?}", resp);
 
         self.buffer.clear();
     }
