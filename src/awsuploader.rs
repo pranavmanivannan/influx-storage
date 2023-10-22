@@ -63,6 +63,10 @@ where
         // 2) check if table in database exists, if not make one (use self.table)
         // 3) upload data to AWS
 
+        // if spawning a client is expensive, we could spawn one in main and pass in clones to each awsuploader made
+        // so that we can make all calls on one client
+        // if one client can't handle the requests, we may need to performance test to see how many clients are needed
+        // to be optimal for our use case (maybe one per exchange? one per channel seems too much)
         let client = Client::new();
 
         let resp = client
