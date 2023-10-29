@@ -99,7 +99,7 @@ where
             .uri(uri)
             .header("key", "value")
             .body(hyper::Body::empty())
-            .unwrap(); // build request to check database
+            .unwrap(); // build request to check database, need to change to match case so this doesn't cause a panic!
 
         return request;
     }
