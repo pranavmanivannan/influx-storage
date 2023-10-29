@@ -2,6 +2,7 @@ mod awsuploader;
 mod channelmessenger;
 mod data;
 
+use hyper::{self, Client};
 use std::{sync::mpsc, thread, time::Duration};
 
 use awsuploader::AWSUploader;
@@ -9,6 +10,8 @@ use channelmessenger::ChannelMessenger;
 use data::MarketData;
 
 fn main() {
+    let client = Client::new();
+
     let (tx, rx) = mpsc::channel();
 
     let sender = ChannelMessenger::new(tx);
@@ -19,6 +22,7 @@ fn main() {
         100,
         "Huobi".to_string(),
         "TradeDetails".to_string(),
+        client,
     );
 
     let sender_handle = thread::spawn(move || loop {

@@ -9,7 +9,7 @@ mod tests {
     fn test_new_channel_messenger() {}
 
     fn test_new_aws_uploader() {}
-    
+
     fn test_receive_data() {}
 
     fn test_send_data() {}
