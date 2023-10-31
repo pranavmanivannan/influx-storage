@@ -9,7 +9,8 @@ use awsuploader::AWSUploader;
 use channelmessenger::ChannelMessenger;
 use data::MarketData;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let client = Client::new();
 
     let (tx, rx) = mpsc::channel();
@@ -35,8 +36,19 @@ fn main() {
         thread::sleep(Duration::from_millis(100));
     });
 
-    let receiver_handle = thread::spawn(move || loop {
-        receiver.receive_data();
+    let receiver_handle = thread::spawn(move || {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("Unable to create Tokio runtime");
+
+        rt.block_on(async {
+            loop {
+                receiver.receive_data().await;
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+        });
     });
 
     sender_handle.join().unwrap();

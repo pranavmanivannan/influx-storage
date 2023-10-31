@@ -1,3 +1,11 @@
+use aws_config::SdkConfig;
+use aws_sdk_timestreamquery::types::DimensionValueType;
+use aws_sdk_timestreamwrite::{
+    types::{Dimension, Record},
+    Client as AWSClient,
+};
+// use aws_sdk_timestreamwrite::model::Record::CommonAttributes;
+use aws_types::region::Region;
 use hyper::{Client, Request, Response, Uri};
 use std::{str::FromStr, sync::mpsc};
 
@@ -44,7 +52,7 @@ where
 
     /// A custom receive method which will receive messages and push them to the buffer. If the buffer reaches capacity,
     /// then it will call upload_data() to push the buffer's messages to AWS.
-    pub fn receive_data(&mut self) {
+    pub async fn receive_data(&mut self) {
         loop {
             match self.receiver_endpoint.recv() {
                 Ok(data) => self.buffer.push(data),
@@ -52,8 +60,9 @@ where
             }
             println!("Working"); // for testing
             if self.buffer.len() > self.buffer_capacity {
-                self.upload_data();
+                self.upload_data().await;
                 println!("Uploaded data!");
+                println!("{:?}", self.buffer.len());
             }
         }
     }
@@ -61,46 +70,43 @@ where
     /// A method that will upload data to AWS. It contains checks to ensure that there is an existing Timestream
     /// database and table, and will create them if necessary. After uploading data, the buffer will be cleared so
     /// future messages can be added.
-    fn upload_data(&mut self) {
-        // user hyper.rs for the following steps:
-        // 1) check if database exists, if not make one (use self.database)
-        // 2) check if table in database exists, if not make one (use self.table)
-        // 3) upload data to AWS
+    async fn upload_data(&mut self) {
+        println!("1");
+        let region = Region::new("us-east-1");
+        println!("1.5");
+        let config = SdkConfig::builder().region(region).build();
+        println!("2");
+        // let config = aws_config::load_from_env().await;
+        let client = AWSClient::new(&config);
+        println!("3");
 
-        let db_url = "http://example.com";
-        let db_request = self.create_request(db_url);
-        let db_response = self.client.request(db_request);
+        let common_attributes = Record::builder()
+            .measure_name("cpu_usage")
+            .dimensions(Dimension::builder().name("host").value("host1").build())
+            .build();
 
-        // check if
-        let table_url = "http://example.com";
-        let table_request = self.create_request(table_url);
-        let table_response = self.client.request(table_request);
+        let new_record = Record::builder()
+            .measure_name("cpu_usage")
+            .measure_value("13.5")
+            .time(chrono::Utc::now().to_rfc3339())
+            .dimensions(Dimension::builder().name("host").value("host1").build())
+            .build();
+        println!("4");
 
-        // upload data to AWS
-        let upload_url = "http://example.com";
-        let upload_request = self.create_request(upload_url);
-        let upload_response = self.client.request(upload_request);
+        let request = client
+            .write_records()
+            .database_name("sampleDB")
+            .table_name("sampleTB")
+            .common_attributes(common_attributes)
+            .records(new_record)
+            .send()
+            .await
+            .unwrap_or_else(|e| {
+                println!("Error: {}", e);
+                panic!("Error sending data to timestream");
+            });
+        println!("5");
 
         self.buffer.clear();
-    }
-
-    // need to do error handling here, probably
-    fn create_request(&mut self, url: &str) -> hyper::Request<hyper::Body> {
-        let uri = match Uri::from_str(url) {
-            Ok(url) => url,
-            Err(error) => {
-                eprintln!("{:?}", error);
-                Uri::from_static("error")
-            }
-        };
-
-        let request = Request::builder()
-            .method("GET")
-            .uri(uri)
-            .header("key", "value")
-            .body(hyper::Body::empty())
-            .unwrap(); // build request to check database, need to change to match case so this doesn't cause a panic!
-
-        return request;
     }
 }

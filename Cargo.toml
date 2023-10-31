@@ -10,3 +10,8 @@ hyper = { version = "0.14", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0.104", features = ["derive"] }
 serde_json = "1.0.107"
+aws-sdk-timestreamwrite = "0.6.0"
+aws-config = "0.56.1"
+aws-types = "0.56.1"
+chrono = "0.4.31"
+aws-sdk-timestreamquery = "0.6.0"
