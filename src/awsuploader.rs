@@ -10,14 +10,15 @@ use hyper::{Client, Request, Response, Uri};
 use std::{str::FromStr, sync::mpsc};
 
 use crate::data;
+use crate::data::DataPacket;
 
 /// A struct for setting a channel receiver endpoint and uploading the messages to AWS services.
-pub struct AWSUploader<T>
-where
-    T: data::Data,
-{
-    pub receiver_endpoint: mpsc::Receiver<T>,
-    pub buffer: Vec<T>,
+pub struct AWSUploader<DataPacket> {
+    pub receiver_endpoint: mpsc::Receiver<DataPacket>,
+    pub binance_market_buffer: Vec<DataPacket>,
+    pub binance_trade_buffer: Vec<DataPacket>,
+    pub huobi_market_buffer: Vec<DataPacket>,
+    pub huobi_trade_buffer: Vec<DataPacket>,
     pub buffer_capacity: usize,
     pub database_name: String,
     pub table_name: String,
@@ -33,16 +34,22 @@ where
     /// Basic constructor for AWSUploader that takes in a Receiver<T> endpoint, a buffer to hold messages from the
     /// channel, a buffer capacity, an AWS Timestream database name, and an AWS Timestream table name.
     pub fn new(
-        endpoint: mpsc::Receiver<T>,
-        buf: Vec<T>,
+        endpoint: mpsc::Receiver<DataPacket>,
+        binance_market_buffer: Vec<DataPacket>,
+        binance_trade_buffer: Vec<DataPacket>,
+        huobi_market_buffer: Vec<DataPacket>,
+        huobi_trade_buffer: Vec<DataPacket>,
         buf_capacity: usize,
         db_name: String,
         tb_name: String,
         cli: Client<hyper::client::HttpConnector>,
-    ) -> AWSUploader<T> {
+    ) -> AWSUploader<DataPacket> {
         AWSUploader {
             receiver_endpoint: endpoint,
-            buffer: buf,
+            binance_market_buffer: binance_market_buffer,
+            binance_trade_buffer: binance_trade_buffer,
+            huobi_market_buffer: huobi_market_buffer,
+            huobi_trade_buffer: huobi_trade_buffer,
             buffer_capacity: buf_capacity,
             database_name: db_name,
             table_name: tb_name,
@@ -55,18 +62,34 @@ where
     pub async fn receive_data(&mut self) {
         loop {
             match self.receiver_endpoint.recv() {
-                Ok(data) => self.buffer.push(data),
+                Ok(data) => self.filter_buffer(data).await,
                 Err(e) => println!("Unable to receive data: {:?}", e),
             }
             println!("Working"); // for testing
-            if self.buffer.len() > self.buffer_capacity {
-                self.upload_data().await;
-                println!("Uploaded data!");
-                println!("{:?}", self.buffer.len());
-            }
+        }
         }
     }
 
+
+    // A separate function that sorts the datapackets and pushes it to the buffer
+    async fn filter_buffer(&mut self, data: DataPacket) {
+        let buffer = match (data.Exchange.as_str(), data.Channel.as_str()) {
+            ("Binance", "Market") => &mut self.binance_market_buffer,
+            ("Binance", "Trade") => &mut self.binance_trade_buffer,
+            ("Huobi", "Market") => &mut self.huobi_market_buffer,
+            ("Huobi", "Trade") => &mut self.huobi_trade_buffer,
+            _ => return, 
+        };
+    
+        if buffer.len() < self.buffer_capacity {
+            buffer.push(data);
+        } else {
+            self.upload_data().await;
+            println!("Uploaded data!");
+            buffer.clear(); 
+            buffer.push(data); 
+        }
+    }
     /// A method that will upload data to AWS. It contains checks to ensure that there is an existing Timestream
     /// database and table, and will create them if necessary. After uploading data, the buffer will be cleared so
     /// future messages can be added.
