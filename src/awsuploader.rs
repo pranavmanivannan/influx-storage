@@ -37,16 +37,17 @@ impl AWSUploader {
         }
     }
 
+    //test get endpoint
     pub async fn get(&self) -> Result<String, reqwest::Error> {
-        let url = "https://w6fxw1zkgg.execute-api.us-east-1.amazonaws.com/samplestage";
+        let url = "https://w6fxw1zkgg.execute-api.us-east-1.amazonaws.com/samplestage/pets";
         let response = self.client.get(url).send().await?;
         let body = response.text().await?;
 
         Ok(body)
     }
 
-    /// A custom receive method which will receive messages and push them to the buffer. If the buffer reaches capacity,
-    /// then it will call upload_data() to push the buffer's messages to AWS.
+    // A custom receive method which will receive messages and push them to the buffer. If the buffer reaches capacity,
+    // then it will call upload_data() to push the buffer's messages to AWS.
     pub async fn receive_data(&mut self) {
         loop {
             match self.receiver_endpoint.recv() {
@@ -57,24 +58,29 @@ impl AWSUploader {
         }
     }
 
-    /// A separate function that sorts the datapackets and pushes it to the appropriate buffer. If the buffer is
-    /// full, it will instead upload the data to AWS, clear the buffer, then push to the buffer.
+    // A separate function that sorts the datapackets and pushes it to the appropriate buffer. If the buffer is
+    // full, it will instead upload the data to AWS, clear the buffer, then push to the buffer.
     async fn filter_buffer(&mut self, data: DataPacket) {
-        let buffer = match (data.exchange.as_str(), data.channel.as_str()) {
+        let buffer: &mut Vec<DataPacket> = match (data.exchange.as_str(), data.channel.as_str()) {
             ("Binance", "Market") => &mut self.buffers.binance_market,
             ("Binance", "Trade") => &mut self.buffers.binance_trade,
             ("Huobi", "Market") => &mut self.buffers.huobi_market,
             ("Huobi", "Trade") => &mut self.buffers.huobi_trade,
             _ => return,
         };
+        buffer.push(data);
 
-        if buffer.len() < self.buffer_capacity {
-            buffer.push(data);
-        } else {
-            // Buffers::upload_data(buffer).await;
-            println!("Uploaded data!");
-            buffer.clear();
-            buffer.push(data);
+        if buffer.len() > self.buffer_capacity {
+            let url = "https://example.com/upload";
+            let data = serde_json::to_string(buffer).expect("Failed to serialize buffer to JSON");
+            let client = reqwest::Client::new();
+
+            let response = client
+                .post(url)
+                .header("Content-Type", "application/json")
+                .body(data)
+                .send()
+                .await;
         }
     }
 }
