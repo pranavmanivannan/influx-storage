@@ -1,30 +1,36 @@
+// main.rs
 mod awsuploader;
 mod channelmessenger;
 mod data;
-
-use data::{DataPacket, MessageType1};
-use hyper::{self, Client};
-use std::{sync::mpsc, thread, time::Duration};
-
 use awsuploader::{AWSUploader, Buffers};
 use channelmessenger::ChannelMessenger;
+use data::{DataPacket, MessageType1};
+use std::{sync::mpsc, thread, time::Duration};
+mod api_gateway;
+use hyper::{self, Client};
 
 #[tokio::main]
 async fn main() {
-    // let client = Client::new();
+    let client = Client::new();
+    let (tx, rx) = mpsc::channel();
+    let sender = ChannelMessenger::new(tx);
 
-    // let (tx, rx) = mpsc::channel();
+    let buffers = Buffers {
+        binance_market: vec![],
+        binance_trade: vec![],
+        huobi_market: vec![],
+        huobi_trade: vec![],
+    };
 
-    // let sender = ChannelMessenger::new(tx);
-
-    // let buffers = Buffers {
-    //     binance_market: vec![],
-    //     binance_trade: vec![],
-    //     huobi_market: vec![],
-    //     huobi_trade: vec![],
-    // };
-
-    // let mut receiver = AWSUploader::new(rx, buffers, 100, client);
+    let awsuploader = AWSUploader::new(rx, buffers, 100);
+    match awsuploader.get().await {
+        Ok(response_body) => {
+            println!("Response Body:\n{}", response_body);
+        }
+        Err(err) => {
+            eprintln!("Request failed: {:?}", err);
+        }
+    }
 
     // let sender_handle = thread::spawn(move || loop {
     //     let message = MessageType1 {
@@ -42,14 +48,12 @@ async fn main() {
     //     sender.send_data(data);
     //     thread::sleep(Duration::from_millis(100));
     // });
-
     // let receiver_handle = thread::spawn(move || {
     //     let rt = tokio::runtime::Builder::new_current_thread()
     //         .worker_threads(1)
     //         .enable_all()
     //         .build()
     //         .expect("Unable to create Tokio runtime");
-
     //     rt.block_on(async {
     //         loop {
     //             receiver.receive_data().await;
@@ -57,9 +61,7 @@ async fn main() {
     //         }
     //     });
     // });
-
     // sender_handle.join().unwrap();
     // receiver_handle.join().unwrap();
-    Buffers::upload_data().await;
+    // Buffers::upload_data().await;
 }
-
