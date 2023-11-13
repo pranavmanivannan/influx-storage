@@ -1,10 +1,18 @@
+use chrono::DateTime;
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
+pub struct AWSData {
+    pub json: String,
+    #[serde(with = "chrono::serde::ts_seconds")]
+    pub timestamp: DateTime<Utc>,
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct DataPacket {
     pub temp_best_ask: String,
     pub temp_ask_amt: String,
-    //change back to dataenum
     pub data: DataEnum,
     pub exchange: String,
     pub channel: String,

@@ -9,10 +9,11 @@
 // use hyper::{Client, Request, Response, Uri};
 use std::{str::FromStr, sync::mpsc};
 
-use crate::data::DataPacket;
+use crate::data::{DataPacket, DataEnum, AWSData};
 
 // awsuploader.rs
 
+use chrono::Utc;
 use reqwest;
 
 pub struct AWSUploader {
@@ -20,6 +21,13 @@ pub struct AWSUploader {
     pub receiver_endpoint: mpsc::Receiver<DataPacket>,
     pub buffers: Buffers,
     pub buffer_capacity: usize,
+}
+
+pub struct Buffers {
+    pub binance_market: Vec<AWSData>,
+    pub binance_trade: Vec<AWSData>,
+    pub huobi_market: Vec<AWSData>,
+    pub huobi_trade: Vec<AWSData>,
 }
 
 impl AWSUploader {
@@ -61,35 +69,37 @@ impl AWSUploader {
     // A separate function that sorts the datapackets and pushes it to the appropriate buffer. If the buffer is
     // full, it will instead upload the data to AWS, clear the buffer, then push to the buffer.
     async fn filter_buffer(&mut self, data: DataPacket) {
-        let buffer: &mut Vec<DataPacket> = match (data.exchange.as_str(), data.channel.as_str()) {
+        let buffer: &mut Vec<AWSData> = match (data.exchange.as_str(), data.channel.as_str()) {
             ("Binance", "Market") => &mut self.buffers.binance_market,
             ("Binance", "Trade") => &mut self.buffers.binance_trade,
             ("Huobi", "Market") => &mut self.buffers.huobi_market,
             ("Huobi", "Trade") => &mut self.buffers.huobi_trade,
             _ => return,
         };
-        buffer.push(data);
+
+        let data_message = match data.data {
+            DataEnum::M1(msg) => msg.data.clone(),
+            DataEnum::M2(msg) => msg.best_ask.clone(),
+        };
+
+        let aws_data = AWSData {json: data_message, timestamp: Utc::now()};
+
+        buffer.push(aws_data);
 
         if buffer.len() > self.buffer_capacity {
             let url = "https://example.com/upload";
-            let data = serde_json::to_string(buffer).expect("Failed to serialize buffer to JSON");
-            let client = reqwest::Client::new();
+            let data = serde_json::to_string(buffer).expect("Failed to serialize buffer to JSON"); // need to make it so that it doesnt panic
 
-            let response = client
+            let response = self.client
                 .post(url)
                 .header("Content-Type", "application/json")
                 .body(data)
                 .send()
                 .await;
+
+            buffer.clear();
         }
     }
-}
-
-pub struct Buffers {
-    pub binance_market: Vec<DataPacket>,
-    pub binance_trade: Vec<DataPacket>,
-    pub huobi_market: Vec<DataPacket>,
-    pub huobi_trade: Vec<DataPacket>,
 }
 
 // /// A struct for setting a channel receiver endpoint and uploading the messages to AWS services.
