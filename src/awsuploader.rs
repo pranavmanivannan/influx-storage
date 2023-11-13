@@ -44,6 +44,39 @@ impl AWSUploader {
 
         Ok(body)
     }
+
+    /// A custom receive method which will receive messages and push them to the buffer. If the buffer reaches capacity,
+    /// then it will call upload_data() to push the buffer's messages to AWS.
+    pub async fn receive_data(&mut self) {
+        loop {
+            match self.receiver_endpoint.recv() {
+                Ok(data) => self.filter_buffer(data).await,
+                Err(e) => println!("Unable to receive data: {:?}", e),
+            }
+            println!("Working"); // for testing
+        }
+    }
+
+    /// A separate function that sorts the datapackets and pushes it to the appropriate buffer. If the buffer is
+    /// full, it will instead upload the data to AWS, clear the buffer, then push to the buffer.
+    async fn filter_buffer(&mut self, data: DataPacket) {
+        let buffer = match (data.exchange.as_str(), data.channel.as_str()) {
+            ("Binance", "Market") => &mut self.buffers.binance_market,
+            ("Binance", "Trade") => &mut self.buffers.binance_trade,
+            ("Huobi", "Market") => &mut self.buffers.huobi_market,
+            ("Huobi", "Trade") => &mut self.buffers.huobi_trade,
+            _ => return,
+        };
+
+        if buffer.len() < self.buffer_capacity {
+            buffer.push(data);
+        } else {
+            // Buffers::upload_data(buffer).await;
+            println!("Uploaded data!");
+            buffer.clear();
+            buffer.push(data);
+        }
+    }
 }
 
 pub struct Buffers {
@@ -80,38 +113,6 @@ pub struct Buffers {
 //         }
 //     }
 
-//     /// A custom receive method which will receive messages and push them to the buffer. If the buffer reaches capacity,
-//     /// then it will call upload_data() to push the buffer's messages to AWS.
-//     pub async fn receive_data(&mut self) {
-//         loop {
-//             match self.receiver_endpoint.recv() {
-//                 Ok(data) => {self.filter_buffer(data).await},
-//                 Err(e) => println!("Unable to receive data: {:?}", e),
-//             }
-//             println!("Working"); // for testing
-//         }
-//     }
-
-//     /// A separate function that sorts the datapackets and pushes it to the appropriate buffer. If the buffer is
-//     /// full, it will instead upload the data to AWS, clear the buffer, then push to the buffer.
-//     async fn filter_buffer(&mut self, data: DataPacket) {
-//         let buffer = match (data.exchange.as_str(), data.channel.as_str()) {
-//             ("Binance", "Market") => &mut self.buffers.binance_market,
-//             ("Binance", "Trade") => &mut self.buffers.binance_trade,
-//             ("Huobi", "Market") => &mut self.buffers.huobi_market,
-//             ("Huobi", "Trade") => &mut self.buffers.huobi_trade,
-//             _ => return,
-//         };
-
-//         if buffer.len() < self.buffer_capacity {
-//             buffer.push(data);
-//         } else {
-//             // Buffers::upload_data(buffer).await;
-//             println!("Uploaded data!");
-//             buffer.clear();
-//             buffer.push(data);
-//         }
-//     }
 // }
 
 // impl Buffers {
