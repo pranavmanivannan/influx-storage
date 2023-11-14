@@ -16,8 +16,7 @@ use std::{
 
 use aws_sdk_s3::{self, primitives::ByteStream};
 
-// const ALL_ACCESS: &str = "8YpDls5dRzdIKzQ0ZKtKhb7_seSW3cCZeFEZpcIxBn0HOoNm12RCkG_9KMSfAyVaSJw--fBb3SlanVwdwKInrw==";
-const ACCESS: &str = "uwQk-ij3njeKBiBsOr2Q6viFUQAZ0fPqVzWeniMG2OpgKoZcnsVLPZKkv7aXHDj79cG0vJp2q-1xS2OfEB08hQ==";
+
 
 /// A struct for setting a channel receiver endpoint and uploading the messages to AWS services.
 pub struct AWSUploader {
@@ -141,15 +140,18 @@ impl AWSUploader {
 
 impl Buffers {
     pub async fn write_data() {
-
+        let influxdb_url = "";
+        let organization = "";
     }
 
     pub async fn query_data() {
-
+        let influxdb_url = "";
+        let organization = "";
     }
 
     pub async fn get_bucket() {
-
+        let influxdb_url = "";
+        let organization = "";
     }
 
 
@@ -157,7 +159,6 @@ impl Buffers {
         let influxdb_url = "http://localhost:8086";
         // let influxdb_url = "https://us-east-1-1.aws.cloud2.influxdata.com";
         let organization = "pranavm";
-        // let organization = "400829963c428647";
         let token = ACCESS;
 
         let bucket_name = "binance";
