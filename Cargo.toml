@@ -14,7 +14,7 @@ aws-config = "0.57.1"
 aws-types = "0.57.1"
 chrono = { version = "0.4.31", features = ["serde"] }
 aws-sdk-timestreamquery = "0.7.0"
-aws-sdk-apigateway = "0.35.0"
+# aws-sdk-apigateway = "0.35.0"
 clap = { version = "~4.4", features = ["derive"] }
 thiserror = "1.0"
 tokio = { version = "1.20.1", features = ["full"] }
@@ -24,3 +24,5 @@ reqwest = "0.11"
 # crypto = "0.5.1"
 ring = "0.17.5"
 hex = "0.4.3"
+aws-sdk-s3 = "0.35.0"
+influxdb = { version = "0.7.1", features = ["derive"] }

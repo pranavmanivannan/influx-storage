@@ -2,18 +2,19 @@
 mod awsuploader;
 mod channelmessenger;
 mod data;
+use chrono::Utc;
+use influxdb::{Client, Error, InfluxDbWriteable, ReadQuery, Timestamp};
 use awsuploader::{AWSUploader, Buffers};
 use channelmessenger::ChannelMessenger;
 use data::{DataPacket, MessageType1};
+use serde::Serialize;
+use serde_json::json;
 use std::{sync::mpsc, thread, time::Duration};
-mod api_gateway;
-use hyper::{self, Client};
 
 #[tokio::main]
 async fn main() {
-    let client = Client::new();
     let (tx, rx) = mpsc::channel();
-    let sender = ChannelMessenger::new(tx);
+    let mut channel_messenger = ChannelMessenger::new(tx);
 
     let buffers = Buffers {
         binance_market: vec![],
@@ -22,17 +23,17 @@ async fn main() {
         huobi_trade: vec![],
     };
 
-    //currently gets from rest api
-    let awsuploader = AWSUploader::new(rx, buffers, 100);
+    let mut aws_uploader = AWSUploader::new(rx, buffers, 100);
 
-    match awsuploader.write().await {
-        Ok(response_body) => {
-            println!("Response Body:\n{}", response_body);
-        }
-        Err(err) => {
-            eprintln!("Request failed: {:?}", err);
-        }
-    }
+
+    // match awsuploader.write().await {
+    //     Ok(response_body) => {
+    //         println!("Response Body:\n{}", response_body);
+    //     }
+    //     Err(err) => {
+    //         eprintln!("Request failed: {:?}", err);
+    //     }
+    // }
 
     // let sender_handle = thread::spawn(move || loop {
     //     let message = MessageType1 {
@@ -47,9 +48,10 @@ async fn main() {
     //         exchange: "Huobi".to_string(),
     //         channel: "Trade".to_string(),
     //     };
-    //     sender.send_data(data);
+    //     channel_messenger.send_data(data);
     //     thread::sleep(Duration::from_millis(100));
     // });
+
     // let receiver_handle = thread::spawn(move || {
     //     let rt = tokio::runtime::Builder::new_current_thread()
     //         .worker_threads(1)
@@ -58,12 +60,12 @@ async fn main() {
     //         .expect("Unable to create Tokio runtime");
     //     rt.block_on(async {
     //         loop {
-    //             receiver.receive_data().await;
+    //             aws_uploader.receive_data().await;
     //             tokio::time::sleep(Duration::from_secs(1)).await;
     //         }
     //     });
     // });
+
     // sender_handle.join().unwrap();
     // receiver_handle.join().unwrap();
-    // Buffers::upload_data().await;
 }
