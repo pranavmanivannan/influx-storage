@@ -22,8 +22,6 @@ async fn main() {
         huobi_trade: vec![],
     };
 
-    buffers.query().await;
-
     //currently gets from rest api
     let awsuploader = AWSUploader::new(rx, buffers, 100);
 

@@ -58,47 +58,6 @@ impl AWSUploader {
         }
     }
 
-    //test get endpoint
-    pub async fn get(&self) -> Result<String, reqwest::Error> {
-        let url = "https://w6fxw1zkgg.execute-api.us-east-1.amazonaws.com/samplestage/pets";
-        let response = self.client.get(url).send().await?;
-        let body = response.text().await?;
-
-        Ok(body)
-    }
-
-    //writes the data to timestream through api gateway
-    pub async fn write(&self) -> Result<String, reqwest::Error> {
-        let data = vec![
-            json!({"name": "temp_name_1", "value": "10"}),
-            json!({"name": "temp_name_2", "value": "20"}),
-        ];
-
-        let data_string = serde_json::to_string(&data).unwrap();
-
-        let lambda_event = json!({
-            "body": data_string,
-            "httpMethod": "POST",
-            "headers": {
-                "Content-Type": "application/json"
-            }
-        });
-
-        let api_gateway_url =
-            "https://rht5rhsdzg.execute-api.us-east-1.amazonaws.com/upload_timestream";
-
-        let response = self
-            .client
-            .post(api_gateway_url)
-            .header("Content-Type", "application/json")
-            .body(lambda_event.to_string())
-            .send()
-            .await?;
-        let body = response.text().await?;
-
-        Ok((body))
-    }
-
     // A custom receive method which will receive messages and push them to the buffer. If the buffer reaches capacity,
     // then it will call upload_data() to push the buffer's messages to AWS.
     pub async fn receive_data(&mut self) {
@@ -149,24 +108,113 @@ impl AWSUploader {
             buffer.clear();
         }
     }
+
+    // //test get endpoint
+    // pub async fn get(&self) -> Result<String, reqwest::Error> {
+    //     let url = "https://w6fxw1zkgg.execute-api.us-east-1.amazonaws.com/samplestage/pets";
+    //     let response = self.client.get(url).send().await?;
+    //     let body = response.text().await?;
+
+    //     Ok(body)
+    // }
+
+    /// Writes the data to AWS Timestream through custom API Gateway
+    pub async fn write(&self) -> Result<String, reqwest::Error> {
+        let data = vec![
+            json!({"name": "temp_name_1", "value": "10"}),
+            json!({"name": "temp_name_2", "value": "20"}),
+        ];
+
+        let data_string = serde_json::to_string(&data).unwrap();
+
+        let lambda_event = json!({
+            "body": data_string,
+            "httpMethod": "POST",
+            "headers": {
+                "Content-Type": "application/json"
+            }
+        });
+
+        let api_gateway_url =
+            "https://rht5rhsdzg.execute-api.us-east-1.amazonaws.com/upload_timestream";
+
+        let response = self
+            .client
+            .post(api_gateway_url)
+            .header("Content-Type", "application/json")
+            .body(lambda_event.to_string())
+            .send()
+            .await?;
+        let body = response.text().await?;
+        Ok(body)
+    }
+
+    /// Queries data from AWS Timestream through custom API Gateway
+    pub async fn query(&self) -> Result<String, reqwest::Error> {
+        let api_gateway_url = "";
+        let response = self.client.get(api_gateway_url).send().await?;
+        let body = response.text().await?;
+        Ok(body)
+    }
 }
 
 impl Buffers {
-    pub async fn query(&self) {
-        let action = "Query";
-        let action_params = "";
-        let date = Utc::now();
-        let query = "SELECT * FROM \"binance\".\"IoT\" LIMIT 10";
-        let cli = reqwest::Client::new();
-        let auth_header = self.make_auth_header("".to_string());
-        let resp = cli
-            .get("https://query.timestream.us-east-1.amazonaws.com")
-            .header("Authorization", auth_header)
-            .body(query)
+    /// Writes the data to AWS Timestream through custom API Gateway
+    pub async fn write(&self, buffer: Vec<AWSData>) -> Result<String, reqwest::Error> {
+        let client = reqwest::Client::new();
+        let data = vec![
+            json!({"name": "temp_name_1", "value": "10"}),
+            json!({"name": "temp_name_2", "value": "20"}),
+        ];
+
+        let data_string = serde_json::to_string(&data).unwrap();
+
+        let lambda_event = json!({
+            "body": data_string,
+            "httpMethod": "POST",
+            "headers": {
+                "Content-Type": "application/json"
+            }
+        });
+
+        let api_gateway_url =
+            "https://rht5rhsdzg.execute-api.us-east-1.amazonaws.com/upload_timestream";
+
+        let response = client
+            .post(api_gateway_url)
+            .header("Content-Type", "application/json")
+            .body(lambda_event.to_string())
             .send()
-            .await;
-        println!("{:?}", resp.as_ref().unwrap());
+            .await?;
+        let body = response.text().await?;
+        Ok(body)
     }
+
+    /// Queries data from AWS Timestream through custom API Gateway
+    pub async fn query(&self) -> Result<String, reqwest::Error> {
+        let client = reqwest::Client::new();
+        let api_gateway_url = "";
+        let response = client.get(api_gateway_url).send().await?;
+        let body = response.text().await?;
+        Ok(body)
+    }
+
+    
+    // pub async fn query(&self) {
+    //     let action = "Query";
+    //     let action_params = "";
+    //     let date = Utc::now();
+    //     let query = "SELECT * FROM \"binance\".\"IoT\" LIMIT 10";
+    //     let cli = reqwest::Client::new();
+    //     let auth_header = self.make_auth_header("".to_string());
+    //     let resp = cli
+    //         .get("https://query.timestream.us-east-1.amazonaws.com")
+    //         .header("Authorization", auth_header)
+    //         .body(query)
+    //         .send()
+    //         .await;
+    //     println!("{:?}", resp.as_ref().unwrap());
+    // }
 
     /// Creates an Authorization header to be used for requests to the AWS API
     fn make_auth_header(&self, payload: String) -> String {
