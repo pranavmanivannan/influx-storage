@@ -7,14 +7,19 @@
 // // use aws_sdk_timestreamwrite::model::Record::CommonAttributes;
 // use aws_types::region::Region;
 // use hyper::{Client, Request, Response, Uri};
-use std::{str::FromStr, sync::{self, mpsc}};
 use crate::data::{AWSData, DataEnum, DataPacket};
 use chrono::Utc;
 use hex;
 use reqwest;
 use ring::{
     digest,
-    hmac::{self, Tag}, signature,
+    hmac::{self, Tag},
+    signature,
+};
+use serde_json::json;
+use std::{
+    str::FromStr,
+    sync::{self, mpsc},
 };
 
 /// A struct for setting a channel receiver endpoint and uploading the messages to AWS services.
@@ -60,6 +65,38 @@ impl AWSUploader {
         let body = response.text().await?;
 
         Ok(body)
+    }
+
+    //writes the data to timestream through api gateway
+    pub async fn write(&self) -> Result<String, reqwest::Error> {
+        let data = vec![
+            json!({"name": "temp_name_1", "value": "10"}),
+            json!({"name": "temp_name_2", "value": "20"}),
+        ];
+
+        let data_string = serde_json::to_string(&data).unwrap();
+
+        let lambda_event = json!({
+            "body": data_string,
+            "httpMethod": "POST",
+            "headers": {
+                "Content-Type": "application/json"
+            }
+        });
+
+        let api_gateway_url =
+            "https://rht5rhsdzg.execute-api.us-east-1.amazonaws.com/upload_timestream";
+
+        let response = self
+            .client
+            .post(api_gateway_url)
+            .header("Content-Type", "application/json")
+            .body(lambda_event.to_string())
+            .send()
+            .await?;
+        let body = response.text().await?;
+
+        Ok((body))
     }
 
     // A custom receive method which will receive messages and push them to the buffer. If the buffer reaches capacity,
@@ -114,7 +151,6 @@ impl AWSUploader {
     }
 }
 
-
 impl Buffers {
     pub async fn query(&self) {
         let action = "Query";
@@ -140,11 +176,18 @@ impl Buffers {
         let utc = Utc::now();
 
         let canonical_request = self.canonical_request("GET".to_string(), payload);
-        let string_to_sign_ = self.string_to_sign(canonical_request, region.clone(), service.clone());
+        let string_to_sign_ =
+            self.string_to_sign(canonical_request, region.clone(), service.clone());
         let signature = self.calc_signature(string_to_sign_);
 
         let algorithm = "Authorization: AWS4-HMAC-SHA256";
-        let credential = format!("Credential={}/{}/{}/{}/aws4_request,", access_key, utc.format("%Y%m%d").to_string(), region, service);
+        let credential = format!(
+            "Credential={}/{}/{}/{}/aws4_request,",
+            access_key,
+            utc.format("%Y%m%d").to_string(),
+            region,
+            service
+        );
         let signed_headers = "SignedHeaders=host;x-amz-date,";
         let sign = format!("Signature={}", signature);
 
@@ -164,7 +207,15 @@ impl Buffers {
             hashed_payload = self.hex(self.sha256hash(payload));
         }
 
-        let result: String = format!("{}{}{}{}{}{}", method, canonical_uri, canonical_query_string, canonical_headers, signed_headers, hashed_payload);
+        let result: String = format!(
+            "{}{}{}{}{}{}",
+            method,
+            canonical_uri,
+            canonical_query_string,
+            canonical_headers,
+            signed_headers,
+            hashed_payload
+        );
 
         result
     }
@@ -175,10 +226,18 @@ impl Buffers {
 
         let algorithm = "AWS4-HMAC-SHA256\n";
         let request_date_time = format!("{}\n", utc.to_rfc3339());
-        let credential_scope = format!("{}/{}/{}/aws4_request\n", utc.format("%Y%m%d").to_string(), region, service);
+        let credential_scope = format!(
+            "{}/{}/{}/aws4_request\n",
+            utc.format("%Y%m%d").to_string(),
+            region,
+            service
+        );
         let hashed_canonical_request = self.hex(self.sha256hash(canonical_request));
-        
-        let result: String = format!("{}{}{}{}", algorithm, request_date_time, credential_scope, hashed_canonical_request);
+
+        let result: String = format!(
+            "{}{}{}{}",
+            algorithm, request_date_time, credential_scope, hashed_canonical_request
+        );
 
         result
     }
@@ -186,11 +245,14 @@ impl Buffers {
     /// Calculates the signature to use for the signed request
     fn calc_signature(&self, string_to_sign_: String) -> String {
         let secret_access_key = "";
-        let kdate = self.hmac_sh256("AWS4".to_string() + secret_access_key, Utc::now().format("%Y%m%d").to_string());
+        let kdate = self.hmac_sh256(
+            "AWS4".to_string() + secret_access_key,
+            Utc::now().format("%Y%m%d").to_string(),
+        );
         let kregion = self.hmac_sh256(kdate, "us-east-1".to_string());
         let kservice = self.hmac_sh256(kregion, "timestream".to_string());
         let ksigning = self.hmac_sh256(kservice, "aws4_request".to_string());
-        
+
         let signature = self.hmac_sh256(ksigning, string_to_sign_);
 
         self.hex(signature)
@@ -220,6 +282,10 @@ impl Buffers {
     /// Computes HMAC by using the SHA256 algorithm with the signing key provided
     fn hmac_sh256(&self, signing_key: String, input: String) -> String {
         let hmac_key = ring::hmac::Key::new(hmac::HMAC_SHA256, signing_key.as_bytes());
-        ring::hmac::sign(&hmac_key, input.as_bytes()).as_ref().iter().map(|byte| format!("{:02x}", byte)).collect()
+        ring::hmac::sign(&hmac_key, input.as_bytes())
+            .as_ref()
+            .iter()
+            .map(|byte| format!("{:02x}", byte))
+            .collect()
     }
 }
