@@ -116,28 +116,24 @@ impl AWSUploader {
 
 
 impl Buffers {
-    pub async fn upload() {
+    pub async fn query(&self) {
         let action = "Query";
         let action_params = "";
         let date = Utc::now();
         let query = "SELECT * FROM \"binance\".\"IoT\" LIMIT 10";
         let cli = reqwest::Client::new();
+        let auth_header = self.make_auth_header("".to_string());
         let resp = cli
-            .post("https://query.timestream.us-east-1.amazonaws.com")
+            .get("https://query.timestream.us-east-1.amazonaws.com")
+            .header("Authorization", auth_header)
             .body(query)
             .send()
             .await;
         println!("{:?}", resp.as_ref().unwrap());
     }
 
-    pub async fn query(&self) {
-        let query_req = self.make_query_request("".to_string());
-        let cli = reqwest::Client::new();
-        let resp = cli.get(query_req).send().await;
-        println!("{:?}", resp);
-    }
-
-    fn make_query_request(&self, payload: String) -> String {
+    /// Creates an Authorization header to be used for requests to the AWS API
+    fn make_auth_header(&self, payload: String) -> String {
         let region = "us-east-1".to_string();
         let service = "timestream".to_string();
         let access_key = "".to_string();
@@ -147,18 +143,17 @@ impl Buffers {
         let string_to_sign_ = self.string_to_sign(canonical_request, region.clone(), service.clone());
         let signature = self.calc_signature(string_to_sign_);
 
-        let request = "https://query.timestream.us-east-1.amazonaws.com/?Action=Query&Version=2023-11-14";
-        let algorithm = "X-Amz-Algorithm=AWS4-HMAC-SHA256&";
-        let credential = format!("X-Amz-Credential={}/{}/{}/{}/aws4_request&", access_key, utc.format("%Y%m%d").to_string(), region, service);
-        let date = format!("X-Amz-Date={}&", utc.to_rfc3339());
-        let signed_headers = "X-Amz-SignedHeaders=host;x-amz-date&";
-        let sign = format!("X-Amz-Signature={}", signature);
+        let algorithm = "Authorization: AWS4-HMAC-SHA256";
+        let credential = format!("Credential={}/{}/{}/{}/aws4_request,", access_key, utc.format("%Y%m%d").to_string(), region, service);
+        let signed_headers = "SignedHeaders=host;x-amz-date,";
+        let sign = format!("Signature={}", signature);
 
-        let result = format!("{}{}{}{}{}{}", request, algorithm, credential, date, signed_headers, sign);
+        let result = format!("{}{}{}{}", algorithm, credential, signed_headers, sign);
 
         result
     }
 
+    /// Creates a canonical request for signing an AWS API request
     fn canonical_request(&self, method: String, payload: String) -> String {
         let canonical_uri = "";
         let canonical_query_string = "";
@@ -174,6 +169,7 @@ impl Buffers {
         result
     }
 
+    /// Creates a string to sign using the canonical request
     fn string_to_sign(&self, canonical_request: String, region: String, service: String) -> String {
         let utc = Utc::now();
 
@@ -187,8 +183,9 @@ impl Buffers {
         result
     }
 
+    /// Calculates the signature to use for the signed request
     fn calc_signature(&self, string_to_sign_: String) -> String {
-        let secret_access_key = "dfd";
+        let secret_access_key = "";
         let kdate = self.hmac_sh256("AWS4".to_string() + secret_access_key, Utc::now().format("%Y%m%d").to_string());
         let kregion = self.hmac_sh256(kdate, "us-east-1".to_string());
         let kservice = self.hmac_sh256(kregion, "timestream".to_string());
@@ -199,14 +196,17 @@ impl Buffers {
         self.hex(signature)
     }
 
+    /// Converts a string to lowercase
     fn lowercase(&self, string: String) -> String {
         string.to_lowercase()
     }
 
+    /// Returns the lowercase base 16 encoding
     fn hex(&self, input: String) -> String {
         hex::encode(input)
     }
 
+    /// Secure Hash Algorithm (SHA) cryptographic hash function
     fn sha256hash(&self, input: String) -> String {
         let digest = ring::digest::digest(&digest::SHA256, input.as_bytes());
         let hash_bytes = digest.as_ref();
@@ -217,54 +217,9 @@ impl Buffers {
         hash_hex
     }
 
+    /// Computes HMAC by using the SHA256 algorithm with the signing key provided
     fn hmac_sh256(&self, signing_key: String, input: String) -> String {
         let hmac_key = ring::hmac::Key::new(hmac::HMAC_SHA256, signing_key.as_bytes());
         ring::hmac::sign(&hmac_key, input.as_bytes()).as_ref().iter().map(|byte| format!("{:02x}", byte)).collect()
     }
 }
-
-
-
-
-// impl Buffers {
-//     /// A method that will upload data to AWS. It contains checks to ensure that there is an existing Timestream
-//     /// database and table, and will create them if necessary. After uploading data, the buffer will be cleared so
-//     /// future messages can be added.
-//     pub async fn upload_data() { //buffer: &mut Vec<DataPacket> is the parameters, add back after done testing
-//         println!("1");
-//         let region = Region::new("us-east-1");
-//         println!("1.5");
-//         let config = SdkConfig::builder().region(region).build();
-//         println!("2");
-//         // let config = aws_config::load_from_env().await;
-//         let client = AWSClient::new(&config);
-//         println!("3");
-
-//         let common_attributes = Record::builder()
-//             .measure_name("cpu_usage")
-//             .dimensions(Dimension::builder().name("host").value("host1").build())
-//             .build();
-
-//         let new_record = Record::builder()
-//             .measure_name("cpu_usage")
-//             .measure_value("13.5")
-//             .time(chrono::Utc::now().to_rfc3339())
-//             .dimensions(Dimension::builder().name("host").value("host1").build())
-//             .build();
-//         println!("4");
-
-//         let _request = client
-//             .write_records()
-//             .database_name("sampleDB")
-//             .table_name("sampleTB")
-//             .common_attributes(common_attributes)
-//             .records(new_record)
-//             .send()
-//             .await
-//             .unwrap_or_else(|e| {
-//                 println!("Error: {}", e);
-//                 panic!("Error sending data to timestream");
-//             });
-//         println!("5");
-//     }
-// }
