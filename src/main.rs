@@ -25,6 +25,8 @@ async fn main() {
 
     let mut aws_uploader = AWSUploader::new(rx, buffers, 100);
 
+    Buffers::create_bucket().await;
+
 
     // match awsuploader.write().await {
     //     Ok(response_body) => {

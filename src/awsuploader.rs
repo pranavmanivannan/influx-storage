@@ -156,10 +156,10 @@ impl Buffers {
 
 
     pub async fn create_bucket() -> Result<(), reqwest::Error>{
-        let influxdb_url = "http://localhost:8086";
-        // let influxdb_url = "https://us-east-1-1.aws.cloud2.influxdata.com";
+        // let influxdb_url = "http://localhost:8086";
+        let influxdb_url = "https://us-east-1-1.aws.cloud2.influxdata.com";
         let organization = "pranavm";
-        let token = ACCESS;
+        let token = "ACCESS";
 
         let bucket_name = "binance";
         let create_bucket_url = format!("{}/api/v2/write?org={}&bucket={}&precision=ns", influxdb_url, organization, bucket_name);
