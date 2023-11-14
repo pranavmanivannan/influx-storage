@@ -7,15 +7,17 @@
 // // use aws_sdk_timestreamwrite::model::Record::CommonAttributes;
 // use aws_types::region::Region;
 // use hyper::{Client, Request, Response, Uri};
-use std::{str::FromStr, sync::mpsc};
-
-use crate::data::{DataPacket, DataEnum, AWSData};
-
-// awsuploader.rs
-
+use std::{str::FromStr, sync::{self, mpsc}};
+use crate::data::{AWSData, DataEnum, DataPacket};
 use chrono::Utc;
+use hex;
 use reqwest;
+use ring::{
+    digest,
+    hmac::{self, Tag}, signature,
+};
 
+/// A struct for setting a channel receiver endpoint and uploading the messages to AWS services.
 pub struct AWSUploader {
     pub client: reqwest::Client,
     pub receiver_endpoint: mpsc::Receiver<DataPacket>,
@@ -23,6 +25,7 @@ pub struct AWSUploader {
     pub buffer_capacity: usize,
 }
 
+/// A struct for keeping track of all buffers needed to store and upload data to AWS.
 pub struct Buffers {
     pub binance_market: Vec<AWSData>,
     pub binance_trade: Vec<AWSData>,
@@ -30,7 +33,12 @@ pub struct Buffers {
     pub huobi_trade: Vec<AWSData>,
 }
 
+/// An implementation of AWSUploader with a constructor alongside methods for receiving messages from a channel
+/// and uploading a buffer to AWS.
+///
 impl AWSUploader {
+    /// Basic constructor for AWSUploader that takes in a Receiver<DataPacket> endpoint, a Buffers struct to hold the
+    /// buffers it will store messages in, and a buffer capacity.
     pub fn new(
         endpoint: mpsc::Receiver<DataPacket>,
         bufs: Buffers,
@@ -82,7 +90,10 @@ impl AWSUploader {
             DataEnum::M2(msg) => msg.best_ask.clone(),
         };
 
-        let aws_data = AWSData {json: data_message, timestamp: Utc::now()};
+        let aws_data = AWSData {
+            json: data_message,
+            timestamp: Utc::now(),
+        };
 
         buffer.push(aws_data);
 
@@ -90,7 +101,8 @@ impl AWSUploader {
             let url = "https://example.com/upload";
             let data = serde_json::to_string(buffer).expect("Failed to serialize buffer to JSON"); // need to make it so that it doesnt panic
 
-            let response = self.client
+            let response = self
+                .client
                 .post(url)
                 .header("Content-Type", "application/json")
                 .body(data)
@@ -102,34 +114,117 @@ impl AWSUploader {
     }
 }
 
-// /// A struct for setting a channel receiver endpoint and uploading the messages to AWS services.
-// pub struct AWSUploader {
-//     pub receiver_endpoint: mpsc::Receiver<DataPacket>,
-//     pub buffers: Buffers,
-//     pub buffer_capacity: usize,
-//     pub client: Client<hyper::client::HttpConnector>,
-// }
 
-// /// An implementation of AWSUploader with a constructor alongside methods for receiving messages from a channel
-// /// and uploading a buffer to AWS.
-// impl AWSUploader {
-//     /// Basic constructor for AWSUploader that takes in a Receiver<T> endpoint, a buffer to hold messages from the
-//     /// channel, a buffer capacity, an AWS Timestream database name, and an AWS Timestream table name.
-//     pub fn new(
-//         endpoint: mpsc::Receiver<DataPacket>,
-//         bufs: Buffers,
-//         buf_capacity: usize,
-//         cli: Client<hyper::client::HttpConnector>,
-//     ) -> AWSUploader {
-//         AWSUploader {
-//             receiver_endpoint: endpoint,
-//             buffers: bufs,
-//             buffer_capacity: buf_capacity,
-//             client: cli,
-//         }
-//     }
+impl Buffers {
+    pub async fn upload() {
+        let action = "Query";
+        let action_params = "";
+        let date = Utc::now();
+        let query = "SELECT * FROM \"binance\".\"IoT\" LIMIT 10";
+        let cli = reqwest::Client::new();
+        let resp = cli
+            .post("https://query.timestream.us-east-1.amazonaws.com")
+            .body(query)
+            .send()
+            .await;
+        println!("{:?}", resp.as_ref().unwrap());
+    }
 
-// }
+    pub async fn query(&self) {
+        let query_req = self.make_query_request("".to_string());
+        let cli = reqwest::Client::new();
+        let resp = cli.get(query_req).send().await;
+        println!("{:?}", resp);
+    }
+
+    fn make_query_request(&self, payload: String) -> String {
+        let region = "us-east-1".to_string();
+        let service = "timestream".to_string();
+        let access_key = "".to_string();
+        let utc = Utc::now();
+
+        let canonical_request = self.canonical_request("GET".to_string(), payload);
+        let string_to_sign_ = self.string_to_sign(canonical_request, region.clone(), service.clone());
+        let signature = self.calc_signature(string_to_sign_);
+
+        let request = "https://query.timestream.us-east-1.amazonaws.com/?Action=Query&Version=2023-11-14";
+        let algorithm = "X-Amz-Algorithm=AWS4-HMAC-SHA256&";
+        let credential = format!("X-Amz-Credential={}/{}/{}/{}/aws4_request&", access_key, utc.format("%Y%m%d").to_string(), region, service);
+        let date = format!("X-Amz-Date={}&", utc.to_rfc3339());
+        let signed_headers = "X-Amz-SignedHeaders=host;x-amz-date&";
+        let sign = format!("X-Amz-Signature={}", signature);
+
+        let result = format!("{}{}{}{}{}{}", request, algorithm, credential, date, signed_headers, sign);
+
+        result
+    }
+
+    fn canonical_request(&self, method: String, payload: String) -> String {
+        let canonical_uri = "";
+        let canonical_query_string = "";
+        let canonical_headers = "";
+        let signed_headers = "";
+        let mut hashed_payload: String = self.hex(self.sha256hash("".to_string()));
+        if payload != "" {
+            hashed_payload = self.hex(self.sha256hash(payload));
+        }
+
+        let result: String = format!("{}{}{}{}{}{}", method, canonical_uri, canonical_query_string, canonical_headers, signed_headers, hashed_payload);
+
+        result
+    }
+
+    fn string_to_sign(&self, canonical_request: String, region: String, service: String) -> String {
+        let utc = Utc::now();
+
+        let algorithm = "AWS4-HMAC-SHA256\n";
+        let request_date_time = format!("{}\n", utc.to_rfc3339());
+        let credential_scope = format!("{}/{}/{}/aws4_request\n", utc.format("%Y%m%d").to_string(), region, service);
+        let hashed_canonical_request = self.hex(self.sha256hash(canonical_request));
+        
+        let result: String = format!("{}{}{}{}", algorithm, request_date_time, credential_scope, hashed_canonical_request);
+
+        result
+    }
+
+    fn calc_signature(&self, string_to_sign_: String) -> String {
+        let secret_access_key = "dfd";
+        let kdate = self.hmac_sh256("AWS4".to_string() + secret_access_key, Utc::now().format("%Y%m%d").to_string());
+        let kregion = self.hmac_sh256(kdate, "us-east-1".to_string());
+        let kservice = self.hmac_sh256(kregion, "timestream".to_string());
+        let ksigning = self.hmac_sh256(kservice, "aws4_request".to_string());
+        
+        let signature = self.hmac_sh256(ksigning, string_to_sign_);
+
+        self.hex(signature)
+    }
+
+    fn lowercase(&self, string: String) -> String {
+        string.to_lowercase()
+    }
+
+    fn hex(&self, input: String) -> String {
+        hex::encode(input)
+    }
+
+    fn sha256hash(&self, input: String) -> String {
+        let digest = ring::digest::digest(&digest::SHA256, input.as_bytes());
+        let hash_bytes = digest.as_ref();
+        let hash_hex: String = hash_bytes
+            .iter()
+            .map(|byte| format!("{:02x}", byte))
+            .collect();
+        hash_hex
+    }
+
+    fn hmac_sh256(&self, signing_key: String, input: String) -> String {
+        let hmac_key = ring::hmac::Key::new(hmac::HMAC_SHA256, signing_key.as_bytes());
+        ring::hmac::sign(&hmac_key, input.as_bytes()).as_ref().iter().map(|byte| format!("{:02x}", byte)).collect()
+    }
+}
+
+
+
 
 // impl Buffers {
 //     /// A method that will upload data to AWS. It contains checks to ensure that there is an existing Timestream

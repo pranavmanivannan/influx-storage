@@ -22,16 +22,20 @@ async fn main() {
         huobi_trade: vec![],
     };
 
+    buffers.query().await;
+
     //currently gets from rest api
     let awsuploader = AWSUploader::new(rx, buffers, 100);
-    match awsuploader.get().await {
-        Ok(response_body) => {
-            println!("Response Body:\n{}", response_body);
-        }
-        Err(err) => {
-            eprintln!("Request failed: {:?}", err);
-        }
-    }
+
+
+    // match awsuploader.get().await {
+    //     Ok(response_body) => {
+    //         println!("Response Body:\n{}", response_body);
+    //     }
+    //     Err(err) => {
+    //         eprintln!("Request failed: {:?}", err);
+    //     }
+    // }
 
     // let sender_handle = thread::spawn(move || loop {
     //     let message = MessageType1 {
