@@ -1,11 +1,11 @@
 // main.rs
-mod awsuploader;
-mod channelmessenger;
+mod data_ingestor;
+mod channel_messenger;
 mod data;
 use chrono::Utc;
+use data_ingestor::{DataIngestor, BufferManager, Buffer};
 use influxdb::{Client, Error, InfluxDbWriteable, ReadQuery, Timestamp};
-use awsuploader::{AWSUploader, Buffers};
-use channelmessenger::ChannelMessenger;
+use channel_messenger::ChannelMessenger;
 use data::{DataPacket, MessageType1};
 use serde::Serialize;
 use serde_json::json;
@@ -16,16 +16,14 @@ async fn main() {
     let (tx, rx) = mpsc::channel();
     let mut channel_messenger = ChannelMessenger::new(tx);
 
-    let buffers = Buffers {
-        binance_market: vec![],
-        binance_trade: vec![],
-        huobi_market: vec![],
-        huobi_trade: vec![],
+    let buffer_manager = BufferManager {
+        binance_market: Buffer{buffer: vec![], table: todo!() },
+        binance_trade: Buffer{buffer: vec![], table: todo!() },
+        huobi_market: Buffer{buffer: vec![], table: todo!() },
+        huobi_trade: Buffer{buffer: vec![], table: todo!() },
     };
 
-    let mut aws_uploader = AWSUploader::new(rx, buffers, 100);
-
-    Buffers::create_bucket().await;
+    let mut data_ingestor = DataIngestor::new(rx, buffer_manager, 100);
 
 
     // match awsuploader.write().await {

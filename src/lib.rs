@@ -1,5 +1,5 @@
-mod awsuploader;
-mod channelmessenger;
+mod data_ingestor;
+mod channel_messenger;
 mod data;
 
 #[cfg(test)]
