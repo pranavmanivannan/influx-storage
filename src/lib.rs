@@ -1,6 +1,6 @@
-mod data_ingestor;
 mod channel_messenger;
 mod data;
+mod data_ingestor;
 
 #[cfg(test)]
 mod tests {

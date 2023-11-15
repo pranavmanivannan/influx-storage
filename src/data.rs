@@ -2,29 +2,42 @@ use chrono::DateTime;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
 pub struct DataPacket {
-    pub temp_best_ask: String,
-    pub temp_ask_amt: String,
-    pub data: DataEnum,
-    pub exchange: String,
-    pub channel: String,
+    pub Data: DataEnum,
+    pub Exchange: String,
+    pub Channel: String,
+    pub timestamp: i64,
 }
 
-#[derive(Serialize, Deserialize)]
+///////////////////////////////////////////////
+
 pub enum DataEnum {
-    M1(MessageType1),
-    M2(MessageType2),
+    BBABinanceBTCData(BestBidAskDataBTCBinance),
+    BBABinanceETHData(BestBidAskDataETHBinance),
+    BBAHuobiBTCData(BestBidAskDataBTCHuobi),
+    BBAHuobiETHData(BestBidAskDataETHHobi),
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct MessageType1 {
-    pub data: String,
-    pub best_ask: f64,
-    pub ask_amt: f64,
+pub struct BestBidAskDataBTCBinance {
+    pub bestask: f64,
+    pub askamt: f64,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct MessageType2 {
-    pub best_ask: String,
+pub struct BestBidAskDataETHBinance {
+    pub bestask: f64,
+    pub askamt: f64,
+}
+
+pub struct BestBidAskDataBTCHuobi {
+    pub bestask: f64,
+    pub askamt: f64,
+    pub bestbid: f64,
+    pub bidamt: f64,
+}
+
+pub struct BestBidAskDataETHHobi {
+    pub bestask: f64,
+    pub askamt: f64,
+    pub bestbid: f64,
+    pub bidamt: f64,
 }

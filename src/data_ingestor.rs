@@ -1,13 +1,9 @@
+use std::sync::mpsc;
+
 use crate::data::{DataEnum, DataPacket};
 use chrono::Utc;
 use reqwest;
 use serde_json::{json, Value};
-use std::{
-    str::FromStr,
-    sync::{self, mpsc}, env, path::Path,
-};
-
-
 
 /// A struct for setting a channel receiver endpoint and uploading the messages to data storage services.
 pub struct DataIngestor {
@@ -66,7 +62,7 @@ impl DataIngestor {
     /// A separate function that sorts the datapackets and pushes it to the appropriate buffer. If the buffer is
     /// full after pushing, it will upload the data to a data storage service then clear the buffer.
     async fn filter_buffer(&mut self, data: DataPacket) {
-        let buffer: &mut Buffer = match (data.exchange.as_str(), data.channel.as_str()) {
+        let buffer: &mut Buffer = match (data.Exchange.as_str(), data.Channel.as_str()) {
             ("Binance", "Market") => &mut self.buffer_manager.binance_market,
             ("Binance", "Trade") => &mut self.buffer_manager.binance_trade,
             ("Huobi", "Market") => &mut self.buffer_manager.huobi_market,
@@ -74,18 +70,22 @@ impl DataIngestor {
             _ => return,
         };
 
-        let data_message = match data.data {
-            DataEnum::M1(msg) => msg.data.clone(),
-            DataEnum::M2(msg) => msg.best_ask.clone(),
+        let message = match data.Data {
+            DataEnum::BBABinanceBTCData(msg) => {
+                json!({"bestask": msg.bestask, "askamt": msg.askamt})
+            }
+            DataEnum::BBABinanceETHData(msg) => {
+                json!({"bestask": msg.bestask, "askamt": msg.askamt})
+            }
+            DataEnum::BBAHuobiBTCData(msg) => {
+                json!({"bestask": msg.bestask, "askamt": msg.askamt, "bestbid": msg.bidamt, "bidamt": msg.bidamt})
+            }
+            DataEnum::BBAHuobiETHData(msg) => {
+                json!({"bestask": msg.bestask, "askamt": msg.askamt, "bestbid": msg.bidamt, "bidamt": msg.bidamt})
+            }
         };
 
-        let data_to_push = json!({
-            "exchange": data.exchange,
-            "json": data_message,
-            "time": Utc::now(),
-        });
-
-        buffer.storage.push(data_to_push);
+        buffer.storage.push(message);
 
         if buffer.storage.len() > self.buffer_capacity {
             BufferManager::write_data(&buffer);
@@ -125,7 +125,6 @@ impl DataIngestor {
     }
 }
 
-
 impl BufferManager {
     /// Writes a buffer's data to Influx
     pub async fn write_data(buffer: &Buffer) {
@@ -146,21 +145,23 @@ impl BufferManager {
         let organization = "";
     }
 
-
-    pub async fn create_bucket() -> Result<(), reqwest::Error>{
+    pub async fn create_bucket() -> Result<(), reqwest::Error> {
         // let influxdb_url = "http://localhost:8086";
         let influxdb_url = "https://us-east-1-1.aws.cloud2.influxdata.com";
         let organization = "pranavm";
         let token = "ACCESS";
 
         let bucket_name = "binance";
-        let create_bucket_url = format!("{}/api/v2/write?org={}&bucket={}&precision=ns", influxdb_url, organization, bucket_name);
+        let create_bucket_url = format!(
+            "{}/api/v2/write?org={}&bucket={}&precision=ns",
+            influxdb_url, organization, bucket_name
+        );
 
         let req_body = r#"
             airSensors,sensor_id=TLM0201 temperature=73.97038159354763,humidity=35.23103248356096,co=0.48445310567793615 1630424257000000000
             airSensors,sensor_id=TLM0202 temperature=75.30007505999716,humidity=35.651929918691714,co=0.5141876544505826 1630424257000000000
         "#;
-        
+
         let client = reqwest::Client::new();
         let response = client
             .post(&create_bucket_url)
