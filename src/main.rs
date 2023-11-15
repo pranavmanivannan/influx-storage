@@ -6,6 +6,7 @@ use channel_messenger::ChannelMessenger;
 use chrono::Utc;
 use data::DataPacket;
 use data_ingestor::{Buffer, BufferManager, DataIngestor};
+use reqwest::Client;
 use serde::Serialize;
 use serde_json::json;
 use std::{sync::mpsc, thread, time::Duration};
@@ -16,6 +17,7 @@ async fn main() {
     let mut channel_messenger = ChannelMessenger::new(tx);
 
     let buffer_manager = BufferManager {
+        client: Client::new(),
         binance_market: Buffer {
             storage: vec![],
             table: todo!(),

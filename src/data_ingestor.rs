@@ -2,7 +2,7 @@ use std::sync::mpsc;
 
 use crate::data::{DataEnum, DataPacket};
 use chrono::Utc;
-use reqwest;
+use reqwest::{self, Client};
 use serde_json::{json, Value};
 
 /// A struct for setting a channel receiver endpoint and uploading the messages to data storage services.
@@ -15,6 +15,7 @@ pub struct DataIngestor {
 
 /// A struct for keeping track of all buffers needed to store and upload data to data storage service.
 pub struct BufferManager {
+    pub client: Client,
     pub binance_market: Buffer,
     pub binance_trade: Buffer,
     pub huobi_market: Buffer,
@@ -88,7 +89,8 @@ impl DataIngestor {
         buffer.storage.push(message);
 
         if buffer.storage.len() > self.buffer_capacity {
-            BufferManager::write_data(&buffer);
+            // logic to write to database here
+
             buffer.storage.clear();
         }
     }
@@ -126,23 +128,19 @@ impl DataIngestor {
 }
 
 impl BufferManager {
-    /// Writes a buffer's data to Influx using an HTTP request.
-    pub async fn write_data(buffer: &Buffer) {
-        let influxdb_url = "";
-        let organization = "";
-    }
-
     /// Queries Influx to get timeseries data through an HTTP request.
-    pub async fn query_data() {
+    pub async fn query_data(client: &Client) {
         let influxdb_url = "";
         let organization = "";
     }
 
-    /// Queries to check if a bucket exists. If it does, return the string. Else, create the bucket then
-    /// return the string.
-    pub async fn get_bucket() {
+    /// Checks if a bucket exists. If it does, return the string. Else, create the bucket then return the string.
+    pub async fn get_bucket(client: &Client) -> String {
         let influxdb_url = "";
         let organization = "";
+        // TO-DO
+        let bucket_name = "";
+        bucket_name.to_string()
     }
 
     pub async fn create_bucket() -> Result<(), reqwest::Error> {
