@@ -8,7 +8,7 @@ pub struct ChannelMessenger {
 
 /// An implementation of ChannelMessenger with a constructor and send_data method.
 impl ChannelMessenger {
-    /// Basic constructor for ChannelMessenger that takes in a Sender<T> endpoint as input
+    /// Basic constructor for ChannelMessenger that takes in a Sender<DataPacket> endpoint as input
     pub fn new(endpoint: mpsc::Sender<DataPacket>) -> ChannelMessenger {
         ChannelMessenger {
             sender_endpoint: endpoint,

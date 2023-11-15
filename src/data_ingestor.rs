@@ -126,13 +126,13 @@ impl DataIngestor {
 }
 
 impl BufferManager {
-    /// Writes a buffer's data to Influx
+    /// Writes a buffer's data to Influx using an HTTP request.
     pub async fn write_data(buffer: &Buffer) {
         let influxdb_url = "";
         let organization = "";
     }
 
-    /// Queries Influx to get timeseries data
+    /// Queries Influx to get timeseries data through an HTTP request.
     pub async fn query_data() {
         let influxdb_url = "";
         let organization = "";
