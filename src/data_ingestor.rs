@@ -1,31 +1,25 @@
-use std::{hash::BuildHasher, sync::mpsc};
-
 use crate::data::{DataEnum, DataPacket};
 use chrono::Utc;
 use reqwest::{self, Client};
 use serde_json::{json, Value};
+use std::time::{Duration, SystemTime};
+use std::{hash::BuildHasher, sync::mpsc};
 
 /// A struct for setting a channel receiver endpoint and uploading the messages to data storage services.
 pub struct DataIngestor {
     pub client: reqwest::Client,
     pub receiver_endpoint: mpsc::Receiver<DataPacket>,
-    pub buffer_manager: BufferManager,
-    pub buffer_capacity: usize,
-}
-
-/// A struct for keeping track of all buffers needed to store and upload data to data storage service.
-pub struct BufferManager {
-    pub client: Client,
     pub binance_market: Buffer,
     pub binance_trade: Buffer,
     pub huobi_market: Buffer,
     pub huobi_trade: Buffer,
+    pub buffer_capacity: usize,
 }
 
 /// A struct for making a buffer. It hold the buffer itself defined as a Vector of json values alongside
 /// a string for the table the buffer will push data to.
 pub struct Buffer {
-    pub storage: Vec<Value>, // there is definitely a better name for this than storage
+    pub storage: Vec<String>, // there is definitely a better name for this than storage
     pub table: String, // table/database name to use so that when we query we can call on this field
 }
 
@@ -36,14 +30,20 @@ impl DataIngestor {
     /// buffers it will store messages in, and a buffer capacity.
     pub fn new(
         endpoint: mpsc::Receiver<DataPacket>,
-        bufs: BufferManager,
+        binance_market: Buffer,
+        binance_trade: Buffer,
+        huobi_market: Buffer,
+        huobi_trade: Buffer,
         buf_capacity: usize,
     ) -> DataIngestor {
         let client = reqwest::Client::new();
         DataIngestor {
             client: client,
             receiver_endpoint: endpoint,
-            buffer_manager: bufs,
+            binance_market: binance_market,
+            binance_trade: binance_trade,
+            huobi_market: huobi_market,
+            huobi_trade: huobi_trade,
             buffer_capacity: buf_capacity,
         }
     }
@@ -64,46 +64,73 @@ impl DataIngestor {
     /// full after pushing, it will upload the data to a data storage service then clear the buffer.
     async fn filter_buffer(&mut self, data: DataPacket) {
         let buffer: &mut Buffer = match (data.Exchange.as_str(), data.Channel.as_str()) {
-            ("Binance", "Market") => &mut self.buffer_manager.binance_market,
-            ("Binance", "Trade") => &mut self.buffer_manager.binance_trade,
-            ("Huobi", "Market") => &mut self.buffer_manager.huobi_market,
-            ("Huobi", "Trade") => &mut self.buffer_manager.huobi_trade,
+            ("Binance", "Market") => &mut self.binance_market,
+            ("Binance", "Trade") => &mut self.binance_trade,
+            ("Huobi", "Market") => &mut self.huobi_market,
+            ("Huobi", "Trade") => &mut self.huobi_trade,
             _ => return,
         };
 
+        let duration_since_epoch = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap();
+        let timestamp = duration_since_epoch.as_nanos(); // u128
+
         let message = match data.Data {
             DataEnum::BBABinanceBTCData(msg) => {
-                json!({"bestask": msg.bestask, "askamt": msg.askamt})
+                format!(
+                    "BBABinanceBTCData, best_ask={}, askamr={} {}",
+                    msg.bestask, msg.askamt, timestamp
+                )
+                // json!({"bestask": msg.bestask, "askamt": msg.askamt})
             }
             DataEnum::BBABinanceETHData(msg) => {
-                json!({"bestask": msg.bestask, "askamt": msg.askamt})
+                format!(
+                    "BBABinanceETHData, best_ask={}, askamr={} {}",
+                    msg.bestask, msg.askamt, timestamp
+                )
+                // json!({"bestask": msg.bestask, "askamt": msg.askamt})
             }
             DataEnum::BBAHuobiBTCData(msg) => {
-                json!({"bestask": msg.bestask, "askamt": msg.askamt, "bestbid": msg.bidamt, "bidamt": msg.bidamt})
+                format!(
+                    "BBAHuobiBTCData, best_ask={}, askamr={} {}",
+                    msg.bestask, msg.askamt, timestamp
+                )
+                // json!({"bestask": msg.bestask, "askamt": msg.askamt, "bestbid": msg.bidamt, "bidamt": msg.bidamt})
             }
             DataEnum::BBAHuobiETHData(msg) => {
-                json!({"bestask": msg.bestask, "askamt": msg.askamt, "bestbid": msg.bidamt, "bidamt": msg.bidamt})
+                format!(
+                    "BBAHuobiETHData, best_ask={}, askamr={} {}",
+                    msg.bestask, msg.askamt, timestamp
+                )
+                // json!({"bestask": msg.bestask, "askamt": msg.askamt, "bestbid": msg.bidamt, "bidamt": msg.bidamt})
             }
         };
 
         buffer.storage.push(message);
 
         if buffer.storage.len() > self.buffer_capacity {
-            // logic to write to database here
-
-            buffer.storage.clear();
+            match buffer.push_data(&self.client).await {
+                Ok(response_body) => {
+                    println!("Successful Push");
+                    buffer.storage.clear();
+                }
+                Err(err) => {
+                    eprintln!("Request failed: {:?}", err);
+                }
+            }
         }
     }
 }
 
-impl BufferManager {
+impl Buffer {
     /// Queries Influx to get timeseries data through an HTTP request.
-    pub async fn query_data(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
-        let organization = ""; // replace w org name
-        let bucket_name = ""; // replace w bucket name
+    pub async fn query_data(&self, client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+        let organization = "devteam"; // replace w org name
+        let bucket_name = "bucket_test"; // replace w bucket name
         let flux_query = "from(bucket: \"".to_owned() + bucket_name + "\")\n |> range(start: -1h)"; // edit w custom q
 
-        let api_token = "sample_api_token"; // replace with api token/env
+        let api_token = ""; // replace with api token/env
         let url = format!(
             "https://us-east-1-1.aws.cloud2.influxdata.com/api/v2/query?org={}",
             organization
@@ -141,6 +168,44 @@ impl BufferManager {
         }
     }
 
+    //pushes the data to influx db
+    pub async fn push_data(&self, client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+        let data = self.storage.join("\n");
+        let api_token = "";
+        let client = reqwest::Client::new();
+        let url = "https://us-east-1-1.aws.cloud2.influxdata.com/api/v2/write?org=devteam&bucket=bucket_test";
+
+        let response = client
+            .post(url)
+            .header("Authorization", format!("Token {}", api_token))
+            .header("Content-Type", "text/plain; charset=utf-8")
+            .header("Accept", "application/json")
+            .body(data)
+            .send()
+            .await;
+
+        match response {
+            Ok(res) => {
+                if res.status().is_success() {
+                    let data = res.text().await?;
+
+                    println!("Queried Data:\n{}", data);
+                } else {
+                    // Handle non-successful status codes
+                    eprintln!("Error: HTTP {}", res.status());
+                    let error_text = res.text().await?;
+                    if !error_text.is_empty() {
+                        eprintln!("Error details: {}", error_text);
+                    }
+                }
+                Ok(())
+            }
+            Err(error) => {
+                // Handle network or reqwest-specific errors
+                Err(Box::new(error))
+            }
+        }
+    }
     /// Checks if a bucket exists. If it does, return the string. Else, create the bucket then return the string.
     pub async fn get_bucket(client: &Client) -> String {
         let influxdb_url = "";

@@ -5,7 +5,7 @@ mod data_ingestor;
 use channel_messenger::ChannelMessenger;
 use chrono::Utc;
 use data::DataPacket;
-use data_ingestor::{Buffer, BufferManager, DataIngestor};
+use data_ingestor::{Buffer, DataIngestor};
 use reqwest::Client;
 use serde::Serialize;
 use serde_json::json;
@@ -16,27 +16,62 @@ async fn main() {
     let (tx, rx) = mpsc::channel();
     let mut channel_messenger = ChannelMessenger::new(tx);
 
-    let buffer_manager = BufferManager {
-        client: Client::new(),
-        binance_market: Buffer {
-            storage: vec![],
-            table: "T".to_string(),
-        },
-        binance_trade: Buffer {
-            storage: vec![],
-            table: "T".to_string(),
-        },
-        huobi_market: Buffer {
-            storage: vec![],
-            table: "T".to_string(),
-        },
-        huobi_trade: Buffer {
-            storage: vec![],
-            table: "T".to_string(),
-        },
+    let mut binance_market = Buffer {
+        storage: vec![],
+        table: "T".to_string(),
     };
+    let binance_trade = Buffer {
+        storage: vec![],
+        table: "T".to_string(),
+    };
+    let huobi_market = Buffer {
+        storage: vec![],
+        table: "T".to_string(),
+    };
+    let huobi_trade = Buffer {
+        storage: vec![],
+        table: "T".to_string(),
+    };
+    binance_market
+        .storage
+        .push("BBABinanceBTCData,best_ask=10 askamr=20 1700088084660515072".to_string());
+    binance_market
+        .storage
+        .push("BBABinanceBTCData,best_ask=20 askamr=20 1700088084660515072".to_string());
+    binance_market
+        .storage
+        .push("BBABinanceBTCData,best_ask=30 askamr=20 1700088084660515072".to_string());
+    binance_market
+        .storage
+        .push("BBABinanceBTCData,best_ask=40 askamr=20 1700088084660515072".to_string());
 
-    let mut data_ingestor = DataIngestor::new(rx, buffer_manager, 100);
+    let sample_client = reqwest::Client::new();
+    match binance_market.push_data(&sample_client).await {
+        Ok(response_body) => {
+            println!("Successful push");
+        }
+        Err(err) => {
+            eprintln!("Request failed: {:?}", err);
+        }
+    }
+
+    match binance_market.query_data(&sample_client).await {
+        Ok(response_body) => {
+            println!("Successful query");
+        }
+        Err(err) => {
+            eprintln!("Request failed: {:?}", err);
+        }
+    }
+
+    // let mut data_ingestor = DataIngestor::new(
+    //     rx,
+    //     binance_market,
+    //     binance_trade,
+    //     huobi_market,
+    //     huobi_trade,
+    //     100,
+    // );
 
     // match awsuploader.write().await {
     //     Ok(response_body) => {
