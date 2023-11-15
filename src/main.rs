@@ -4,7 +4,6 @@ mod channel_messenger;
 mod data;
 use chrono::Utc;
 use data_ingestor::{DataIngestor, BufferManager, Buffer};
-use influxdb::{Client, Error, InfluxDbWriteable, ReadQuery, Timestamp};
 use channel_messenger::ChannelMessenger;
 use data::{DataPacket, MessageType1};
 use serde::Serialize;
@@ -17,10 +16,10 @@ async fn main() {
     let mut channel_messenger = ChannelMessenger::new(tx);
 
     let buffer_manager = BufferManager {
-        binance_market: Buffer{buffer: vec![], table: todo!() },
-        binance_trade: Buffer{buffer: vec![], table: todo!() },
-        huobi_market: Buffer{buffer: vec![], table: todo!() },
-        huobi_trade: Buffer{buffer: vec![], table: todo!() },
+        binance_market: Buffer{storage: vec![], table: todo!() },
+        binance_trade: Buffer{storage: vec![], table: todo!() },
+        huobi_market: Buffer{storage: vec![], table: todo!() },
+        huobi_trade: Buffer{storage: vec![], table: todo!() },
     };
 
     let mut data_ingestor = DataIngestor::new(rx, buffer_manager, 100);

@@ -1,16 +1,6 @@
 use chrono::DateTime;
 use chrono::Utc;
-use influxdb::InfluxDbWriteable;
 use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, InfluxDbWriteable)]
-pub struct AWSData {
-    #[influxdb(tag)]
-    pub exchange: String,
-    pub json: String,
-    #[serde(with = "chrono::serde::ts_seconds")]
-    pub time: DateTime<Utc>,
-}
 
 #[derive(Serialize, Deserialize)]
 pub struct DataPacket {
