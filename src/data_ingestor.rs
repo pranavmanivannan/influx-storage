@@ -1,7 +1,9 @@
 use crate::data::{DataEnum, DataPacket};
 use chrono::Utc;
+use dotenv::dotenv;
 use reqwest::{self, Client};
 use serde_json::{json, Value};
+use std::env;
 use std::time::{Duration, SystemTime};
 use std::{hash::BuildHasher, sync::mpsc};
 
@@ -79,28 +81,28 @@ impl DataIngestor {
         let message = match data.Data {
             DataEnum::BBABinanceBTCData(msg) => {
                 format!(
-                    "BBABinanceBTCData, best_ask={}, askamr={} {}",
+                    "BBABinanceBTCData,best_ask={} askamr={} {}",
                     msg.bestask, msg.askamt, timestamp
                 )
                 // json!({"bestask": msg.bestask, "askamt": msg.askamt})
             }
             DataEnum::BBABinanceETHData(msg) => {
                 format!(
-                    "BBABinanceETHData, best_ask={}, askamr={} {}",
+                    "BBABinanceETHData,best_ask={} askamr={} {}",
                     msg.bestask, msg.askamt, timestamp
                 )
                 // json!({"bestask": msg.bestask, "askamt": msg.askamt})
             }
             DataEnum::BBAHuobiBTCData(msg) => {
                 format!(
-                    "BBAHuobiBTCData, best_ask={}, askamr={} {}",
+                    "BBAHuobiBTCData,best_ask={} askamr={} {}",
                     msg.bestask, msg.askamt, timestamp
                 )
                 // json!({"bestask": msg.bestask, "askamt": msg.askamt, "bestbid": msg.bidamt, "bidamt": msg.bidamt})
             }
             DataEnum::BBAHuobiETHData(msg) => {
                 format!(
-                    "BBAHuobiETHData, best_ask={}, askamr={} {}",
+                    "BBAHuobiETHData,best_ask={} askamr={} {}",
                     msg.bestask, msg.askamt, timestamp
                 )
                 // json!({"bestask": msg.bestask, "askamt": msg.askamt, "bestbid": msg.bidamt, "bidamt": msg.bidamt})
@@ -126,11 +128,12 @@ impl DataIngestor {
 impl Buffer {
     /// Queries Influx to get timeseries data through an HTTP request.
     pub async fn query_data(&self, client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+        dotenv().ok();
         let organization = "devteam"; // replace w org name
         let bucket_name = "bucket_test"; // replace w bucket name
         let flux_query = "from(bucket: \"".to_owned() + bucket_name + "\")\n |> range(start: -1h)"; // edit w custom q
+        let api_token = env::var("API_TOKEN").expect("API_TOKEN must be set");
 
-        let api_token = ""; // replace with api token/env
         let url = format!(
             "https://us-east-1-1.aws.cloud2.influxdata.com/api/v2/query?org={}",
             organization
@@ -170,10 +173,11 @@ impl Buffer {
 
     //pushes the data to influx db
     pub async fn push_data(&self, client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+        dotenv().ok();
         let data = self.storage.join("\n");
-        let api_token = "";
         let client = reqwest::Client::new();
         let url = "https://us-east-1-1.aws.cloud2.influxdata.com/api/v2/write?org=devteam&bucket=bucket_test";
+        let api_token = env::var("API_TOKEN").expect("API_TOKEN must be set");
 
         let response = client
             .post(url)

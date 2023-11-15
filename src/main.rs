@@ -32,18 +32,19 @@ async fn main() {
         storage: vec![],
         table: "T".to_string(),
     };
+    //tests
     binance_market
         .storage
-        .push("BBABinanceBTCData,best_ask=10 askamr=20 1700088084660515072".to_string());
+        .push("BBABinanceBTCData,best_ask=130 askamr=20 1700088084660515072".to_string());
     binance_market
         .storage
-        .push("BBABinanceBTCData,best_ask=20 askamr=20 1700088084660515072".to_string());
+        .push("BBABinanceBTCData,best_ask=140 askamr=20 1700088084660515072".to_string());
     binance_market
         .storage
-        .push("BBABinanceBTCData,best_ask=30 askamr=20 1700088084660515072".to_string());
+        .push("BBABinanceBTCData,best_ask=150 askamr=20 1700088084660515072".to_string());
     binance_market
         .storage
-        .push("BBABinanceBTCData,best_ask=40 askamr=20 1700088084660515072".to_string());
+        .push("BBABinanceBTCData,best_ask=160 askamr=20 1700088084660515072".to_string());
 
     let sample_client = reqwest::Client::new();
     match binance_market.push_data(&sample_client).await {
