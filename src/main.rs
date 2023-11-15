@@ -20,19 +20,19 @@ async fn main() {
         client: Client::new(),
         binance_market: Buffer {
             storage: vec![],
-            table: todo!(),
+            table: "T".to_string(),
         },
         binance_trade: Buffer {
             storage: vec![],
-            table: todo!(),
+            table: "T".to_string(),
         },
         huobi_market: Buffer {
             storage: vec![],
-            table: todo!(),
+            table: "T".to_string(),
         },
         huobi_trade: Buffer {
             storage: vec![],
-            table: todo!(),
+            table: "T".to_string(),
         },
     };
 

@@ -1,4 +1,4 @@
-use std::sync::mpsc;
+use std::{hash::BuildHasher, sync::mpsc};
 
 use crate::data::{DataEnum, DataPacket};
 use chrono::Utc;
@@ -94,44 +94,51 @@ impl DataIngestor {
             buffer.storage.clear();
         }
     }
-
-    /// Writes the data to AWS Timestream through custom API Gateway
-    pub async fn write(&self) -> Result<String, reqwest::Error> {
-        let data = vec![
-            json!({"name": "temp_name_1", "value": "10"}),
-            json!({"name": "temp_name_2", "value": "20"}),
-        ];
-
-        let data_string = serde_json::to_string(&data).unwrap();
-
-        let lambda_event = json!({
-            "body": data_string,
-            "httpMethod": "POST",
-            "headers": {
-                "Content-Type": "application/json"
-            }
-        });
-
-        let api_gateway_url =
-            "https://rht5rhsdzg.execute-api.us-east-1.amazonaws.com/upload_timestream";
-
-        let response = self
-            .client
-            .post(api_gateway_url)
-            .header("Content-Type", "application/json")
-            .body(lambda_event.to_string())
-            .send()
-            .await?;
-        let body = response.text().await?;
-        Ok(body)
-    }
 }
 
 impl BufferManager {
     /// Queries Influx to get timeseries data through an HTTP request.
-    pub async fn query_data(client: &Client) {
-        let influxdb_url = "";
-        let organization = "";
+    pub async fn query_data(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+        let organization = ""; // replace w org name
+        let bucket_name = ""; // replace w bucket name
+        let flux_query = "from(bucket: \"".to_owned() + bucket_name + "\")\n |> range(start: -1h)"; // edit w custom q
+
+        let api_token = "sample_api_token"; // replace with api token/env
+        let url = format!(
+            "https://us-east-1-1.aws.cloud2.influxdata.com/api/v2/query?org={}",
+            organization
+        );
+
+        let response = client
+            .post(url)
+            .header("Authorization", format!("Token {}", api_token))
+            .header("Accept", "application/csv")
+            .header("Content-type", "application/vnd.flux")
+            .body(flux_query)
+            .send()
+            .await;
+
+        //error handling can delete later
+        match response {
+            Ok(res) => {
+                if res.status().is_success() {
+                    let data = res.text().await?;
+                    println!("Queried Data:\n{}", data);
+                } else {
+                    // handle non-successful status codes
+                    eprintln!("Error: HTTP {}", res.status());
+                    let error_text = res.text().await?;
+                    if !error_text.is_empty() {
+                        eprintln!("Error details: {}", error_text);
+                    }
+                }
+                Ok(())
+            }
+            Err(error) => {
+                // handle network or reqwest-specific errors
+                Err(Box::new(error))
+            }
+        }
     }
 
     /// Checks if a bucket exists. If it does, return the string. Else, create the bucket then return the string.
@@ -140,7 +147,7 @@ impl BufferManager {
         let organization = "";
         // TO-DO
         let bucket_name = "";
-        bucket_name.to_string()
+        return bucket_name.to_string();
     }
 
     pub async fn create_bucket() -> Result<(), reqwest::Error> {
