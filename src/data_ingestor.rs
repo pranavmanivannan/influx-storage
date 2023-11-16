@@ -22,6 +22,7 @@ pub struct DataIngestor {
 /// a string for the table the buffer will push data to.
 pub struct Buffer {
     pub storage: Vec<String>, // there is definitely a better name for this than storage
+    pub db: String,
     pub table: String, // table/database name to use so that when we query we can call on this field
 }
 
@@ -30,22 +31,31 @@ pub struct Buffer {
 impl DataIngestor {
     /// Basic constructor for DataIngestor that takes in a Receiver<DataPacket> endpoint, a Buffers struct to hold the
     /// buffers it will store messages in, and a buffer capacity.
-    pub fn new(
-        endpoint: mpsc::Receiver<DataPacket>,
-        binance_market: Buffer,
-        binance_trade: Buffer,
-        huobi_market: Buffer,
-        huobi_trade: Buffer,
-        buf_capacity: usize,
-    ) -> DataIngestor {
+    pub fn new(endpoint: mpsc::Receiver<DataPacket>, buf_capacity: usize) -> DataIngestor {
         let client = reqwest::Client::new();
         DataIngestor {
             client: client,
             receiver_endpoint: endpoint,
-            binance_market: binance_market,
-            binance_trade: binance_trade,
-            huobi_market: huobi_market,
-            huobi_trade: huobi_trade,
+            binance_market: Buffer {
+                storage: vec![],
+                db: "bucket_test".to_string(),
+                table: "channel_name".to_string(),
+            },
+            binance_trade: Buffer {
+                storage: vec![],
+                db: "bucket_test".to_string(),
+                table: "channel_name".to_string(),
+            },
+            huobi_market: Buffer {
+                storage: vec![],
+                db: "bucket_test".to_string(),
+                table: "channel_name".to_string(),
+            },
+            huobi_trade: Buffer {
+                storage: vec![],
+                db: "bucket_test".to_string(),
+                table: "channel_name".to_string(),
+            },
             buffer_capacity: buf_capacity,
         }
     }
@@ -84,28 +94,24 @@ impl DataIngestor {
                     "BBABinanceBTCData,best_ask={} askamr={} {}",
                     msg.bestask, msg.askamt, timestamp
                 )
-                // json!({"bestask": msg.bestask, "askamt": msg.askamt})
             }
             DataEnum::BBABinanceETHData(msg) => {
                 format!(
                     "BBABinanceETHData,best_ask={} askamr={} {}",
                     msg.bestask, msg.askamt, timestamp
                 )
-                // json!({"bestask": msg.bestask, "askamt": msg.askamt})
             }
             DataEnum::BBAHuobiBTCData(msg) => {
                 format!(
                     "BBAHuobiBTCData,best_ask={} askamr={} {}",
                     msg.bestask, msg.askamt, timestamp
                 )
-                // json!({"bestask": msg.bestask, "askamt": msg.askamt, "bestbid": msg.bidamt, "bidamt": msg.bidamt})
             }
             DataEnum::BBAHuobiETHData(msg) => {
                 format!(
                     "BBAHuobiETHData,best_ask={} askamr={} {}",
                     msg.bestask, msg.askamt, timestamp
                 )
-                // json!({"bestask": msg.bestask, "askamt": msg.askamt, "bestbid": msg.bidamt, "bidamt": msg.bidamt})
             }
         };
 
@@ -116,6 +122,7 @@ impl DataIngestor {
                 Ok(response_body) => {
                     println!("Successful Push");
                     buffer.storage.clear();
+                    buffer.query_data(&self.client).await;
                 }
                 Err(err) => {
                     eprintln!("Request failed: {:?}", err);
@@ -130,7 +137,7 @@ impl Buffer {
     pub async fn query_data(&self, client: &Client) -> Result<(), Box<dyn std::error::Error>> {
         dotenv().ok();
         let organization = "devteam"; // replace w org name
-        let bucket_name = "bucket_test"; // replace w bucket name
+        let bucket_name = &self.db; // replace w bucket name
         let flux_query = "from(bucket: \"".to_owned() + bucket_name + "\")\n |> range(start: -1h)"; // edit w custom q
         let api_token = env::var("API_TOKEN").expect("API_TOKEN must be set");
 
@@ -174,9 +181,15 @@ impl Buffer {
     //pushes the data to influx db
     pub async fn push_data(&self, client: &Client) -> Result<(), Box<dyn std::error::Error>> {
         dotenv().ok();
+        let organization = "devteam";
         let data = self.storage.join("\n");
         let client = reqwest::Client::new();
-        let url = "https://us-east-1-1.aws.cloud2.influxdata.com/api/v2/write?org=devteam&bucket=bucket_test";
+        let bucket_name = &self.db;
+        let url = format!(
+            "https://us-east-1-1.aws.cloud2.influxdata.com/api/v2/write?org={}&bucket={}",
+            organization, bucket_name,
+        );
+
         let api_token = env::var("API_TOKEN").expect("API_TOKEN must be set");
 
         let response = client
@@ -193,7 +206,7 @@ impl Buffer {
                 if res.status().is_success() {
                     let data = res.text().await?;
 
-                    println!("Queried Data:\n{}", data);
+                    println!("Pushed Data:\n{}", data);
                 } else {
                     // Handle non-successful status codes
                     eprintln!("Error: HTTP {}", res.status());
@@ -210,6 +223,7 @@ impl Buffer {
             }
         }
     }
+
     /// Checks if a bucket exists. If it does, return the string. Else, create the bucket then return the string.
     pub async fn get_bucket(client: &Client) -> String {
         let influxdb_url = "";
