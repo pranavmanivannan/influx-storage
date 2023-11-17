@@ -3,12 +3,8 @@ mod channel_messenger;
 mod data;
 mod data_ingestor;
 use channel_messenger::ChannelMessenger;
-use chrono::Utc;
 use data::{BestBidAskDataBTCBinance, DataEnum, DataPacket};
-use data_ingestor::{Buffer, DataIngestor};
-use reqwest::Client;
-use serde::Serialize;
-use serde_json::json;
+use data_ingestor::DataIngestor;
 use std::{sync::mpsc, thread, time::Duration};
 
 #[tokio::main]

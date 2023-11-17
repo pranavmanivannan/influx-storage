@@ -1,14 +1,13 @@
 use crate::data::{DataEnum, DataPacket};
 use dotenv::dotenv;
 use reqwest::{self, Client};
-use serde_json::{json, Value};
 use std::env;
 use std::time::SystemTime;
 use std::sync::mpsc;
 
 
-const ORGANIZATION: &str = "devteam";
-const ORG_ID: &str = "400829963c428647";
+const ORGANIZATION: &str = "devteam"; //replace with organization name
+const ORG_ID: &str = ""; //replace w org id
 
 /// A struct for setting a channel receiver endpoint and uploading the messages to data storage services.
 pub struct DataIngestor {
@@ -26,7 +25,6 @@ pub struct DataIngestor {
 pub struct Buffer {
     pub storage: Vec<String>, // there is definitely a better name for this than storage
     pub bucket: String,
-    pub table: String, // table/database name to use so that when we query we can call on this field
 }
 
 /// An implementation of DataIngestor with a constructor alongside methods for receiving messages from a channel
@@ -42,22 +40,18 @@ impl DataIngestor {
             binance_market: Buffer {
                 storage: vec![],
                 bucket: "bucket_test".to_string(),
-                table: "channel_name".to_string(),
             },
             binance_trade: Buffer {
                 storage: vec![],
                 bucket: "bucket_test".to_string(),
-                table: "channel_name".to_string(),
             },
             huobi_market: Buffer {
                 storage: vec![],
                 bucket: "bucket_test".to_string(),
-                table: "channel_name".to_string(),
             },
             huobi_trade: Buffer {
                 storage: vec![],
                 bucket: "bucket_test".to_string(),
-                table: "channel_name".to_string(),
             },
             buffer_capacity: buf_capacity,
         }
@@ -71,7 +65,6 @@ impl DataIngestor {
                 Ok(data) => self.filter_buffer(data).await,
                 Err(e) => println!("Unable to receive data: {:?}", e),
             }
-            // println!("Working"); // for testing
         }
     }
 
@@ -136,7 +129,7 @@ impl DataIngestor {
 }
 
 impl Buffer {
-    /// Queries Influx to get timeseries data through an HTTP request.
+    /// Queries an InfluxDB bucket to get timeseries data through an HTTP request.
     pub async fn query_data(&self, client: &Client) -> Result<(), Box<dyn std::error::Error>> {
         dotenv().ok();
         let organization = ORGANIZATION; // replace w org name
@@ -181,7 +174,7 @@ impl Buffer {
         }
     }
 
-    //pushes the data to influx db
+    /// Pushes the data in a buffer to an InfluxDB bucket.
     pub async fn push_data(&self, client: &Client) -> Result<(), Box<dyn std::error::Error>> {
         dotenv().ok();
         let organization = ORGANIZATION;
