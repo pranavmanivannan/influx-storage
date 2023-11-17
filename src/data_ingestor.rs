@@ -2,9 +2,8 @@ use crate::data::{DataEnum, DataPacket};
 use dotenv::dotenv;
 use reqwest::{self, Client};
 use std::env;
-use std::time::SystemTime;
 use std::sync::mpsc;
-
+use std::time::SystemTime;
 
 const ORGANIZATION: &str = "devteam"; //replace with organization name
 const ORG_ID: &str = ""; //replace w org id
@@ -37,22 +36,10 @@ impl DataIngestor {
         DataIngestor {
             client: client,
             receiver_endpoint: endpoint,
-            binance_market: Buffer {
-                storage: vec![],
-                bucket: "bucket_test".to_string(),
-            },
-            binance_trade: Buffer {
-                storage: vec![],
-                bucket: "bucket_test".to_string(),
-            },
-            huobi_market: Buffer {
-                storage: vec![],
-                bucket: "bucket_test".to_string(),
-            },
-            huobi_trade: Buffer {
-                storage: vec![],
-                bucket: "bucket_test".to_string(),
-            },
+            binance_market: Buffer::new("bucket_test".to_string()),
+            binance_trade: Buffer::new("bucket_test".to_string()),
+            huobi_market:  Buffer::new("bucket_test".to_string()),
+            huobi_trade:  Buffer::new("bucket_test".to_string()),
             buffer_capacity: buf_capacity,
         }
     }
@@ -128,7 +115,15 @@ impl DataIngestor {
     }
 }
 
+/// An implementation of the Buffer struct which allows Buffers
 impl Buffer {
+    fn new(bucket_name: String) -> Buffer {
+        Buffer {
+            storage: vec![],
+            bucket: bucket_name,
+        }
+    }
+
     /// Queries an InfluxDB bucket to get timeseries data through an HTTP request.
     pub async fn query_data(&self, client: &Client) -> Result<(), Box<dyn std::error::Error>> {
         dotenv().ok();

@@ -50,7 +50,7 @@ async fn main() {
     let sender_handle = thread::spawn(move || loop {
         let data = DataEnum::BBABinanceBTCData(BestBidAskDataBTCBinance {
             bestask: 20.0,
-            askamt: 20.0,
+            askamt: 21.0,
         });
 
         let data = DataPacket {
