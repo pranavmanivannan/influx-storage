@@ -22,6 +22,6 @@ impl ChannelMessenger {
             Ok(_) => {}
             Err(e) => println!("Unable to send information to channel {:?}", e),
         }
-        println!("Sender work"); // for testing
+        // println!("Sender work"); // for testing
     }
 }
