@@ -1,5 +1,5 @@
 // main.rs
-// extern crate project;
+// use market_connection_library;
 mod channel_messenger;
 mod data;
 mod data_ingestor;
