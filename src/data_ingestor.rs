@@ -38,8 +38,8 @@ impl DataIngestor {
             receiver_endpoint: endpoint,
             binance_market: Buffer::new("bucket_test".to_string()),
             binance_trade: Buffer::new("bucket_test".to_string()),
-            huobi_market:  Buffer::new("bucket_test".to_string()),
-            huobi_trade:  Buffer::new("bucket_test".to_string()),
+            huobi_market: Buffer::new("bucket_test".to_string()),
+            huobi_trade: Buffer::new("bucket_test".to_string()),
             buffer_capacity: buf_capacity,
         }
     }
@@ -105,7 +105,13 @@ impl DataIngestor {
                 Ok(response_body) => {
                     println!("Successful Push");
                     buffer.storage.clear();
-                    buffer.query_data(&self.client).await;
+                    let _ = Buffer::query_data(
+                        &self.client,
+                        "2023-01-01T00:00:00Z".to_owned(),
+                        "2023-01-02T00:00:00Z".to_owned(),
+                        "bucket_test".to_owned(),
+                    )
+                    .await;
                 }
                 Err(err) => {
                     eprintln!("Request failed: {:?}", err);
@@ -124,12 +130,27 @@ impl Buffer {
         }
     }
 
+    // let start_time = "2023-01-01T00:00:00Z";  RFC3339 format
+    // let end_time = "2023-01-02T00:00:00Z";
+
     /// Queries an InfluxDB bucket to get timeseries data through an HTTP request.
-    pub async fn query_data(&self, client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn query_data(
+        client: &Client,
+        startdate: String,
+        enddate: String,
+        bucket_name: String,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         dotenv().ok();
-        let organization = ORGANIZATION; // replace w org name
-        let bucket_name = &self.bucket; // replace w bucket name
-        let flux_query = "from(bucket: \"".to_owned() + bucket_name + "\")\n |> range(start: -1h)"; // edit w custom q
+        let organization = ORGANIZATION;
+        let bucket_name = &bucket_name;
+
+        let flux_query = "from(bucket: \"".to_owned()
+            + bucket_name
+            + "\")\n |> range(start: "
+            + &startdate
+            + ", stop: "
+            + &enddate
+            + ")";
         let api_token = env::var("API_TOKEN").expect("API_TOKEN must be set");
 
         let url = format!(
