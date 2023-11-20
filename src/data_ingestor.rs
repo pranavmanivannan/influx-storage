@@ -105,7 +105,7 @@ impl DataIngestor {
                 Ok(response_body) => {
                     println!("Successful Push");
                     buffer.storage.clear();
-                    // buffer.query_data(&self.client).await;
+                    buffer.query_data(&self.client).await;
                 }
                 Err(err) => {
                     eprintln!("Request failed: {:?}", err);
