@@ -1,5 +1,4 @@
 use crate::data::{DataEnum, DataPacket};
-// use market_connection_library::data_packet::{DataEnum, DataPacket};
 use dotenv::dotenv;
 use reqwest::{self, Client};
 use std::env;
@@ -81,7 +80,7 @@ impl DataIngestor {
             },
             DataEnum::RBA(msg) => {
                 format!(
-                    "RBA, asks={} bids={} {}",
+                    "RBA, asks={:?} bids={:?} {}",
                     msg.asks, msg.bids, timestamp
                 )
             },
