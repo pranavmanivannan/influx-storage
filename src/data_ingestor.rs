@@ -58,8 +58,8 @@ impl DataIngestor {
 
     /// A separate function that sorts the datapackets and pushes it to the appropriate buffer. If the buffer is
     /// full after pushing, it will upload the data to a data storage service then clear the buffer.
-    async fn filter_buffer(&mut self, data: DataPacket) {
-        let buffer: &mut Buffer = match (data.Exchange.as_str(), data.Channel.as_str()) {
+    async fn filter_buffer(&mut self, data_packet: DataPacket) {
+        let buffer: &mut Buffer = match (data_packet.exchange.as_str(), data_packet.channel.as_str()) {
             ("Binance", "Market") => &mut self.binance_market,
             ("Binance", "Trade") => &mut self.binance_trade,
             ("Huobi", "Market") => &mut self.huobi_market,
@@ -72,31 +72,19 @@ impl DataIngestor {
             .unwrap();
         let timestamp = duration_since_epoch.as_nanos(); // u128
 
-        let message = match data.Data {
-            DataEnum::BBABinanceBTCData(msg) => {
+        let message = match data_packet.data {
+            DataEnum::MBP(msg) => {
                 format!(
-                    "BBABinanceBTCData,best_ask={} askamt={} {}",
-                    msg.bestask, msg.askamt, timestamp
+                    "MBP, bestask={} askamt={} bestbid={} bidamt={} {}",
+                    msg.bestask, msg.askamount, msg.bestbid, msg.bidamount, timestamp
                 )
-            }
-            DataEnum::BBABinanceETHData(msg) => {
+            },
+            DataEnum::RBA(msg) => {
                 format!(
-                    "BBABinanceETHData,best_ask={} askamt={} {}",
-                    msg.bestask, msg.askamt, timestamp
+                    "RBA, asks={} bids={} {}",
+                    msg.asks, msg.bids, timestamp
                 )
-            }
-            DataEnum::BBAHuobiBTCData(msg) => {
-                format!(
-                    "BBAHuobiBTCData,best_ask={} askamt={} {}",
-                    msg.bestask, msg.askamt, timestamp
-                )
-            }
-            DataEnum::BBAHuobiETHData(msg) => {
-                format!(
-                    "BBAHuobiETHData,best_ask={} askamt={} {}",
-                    msg.bestask, msg.askamt, timestamp
-                )
-            }
+            },
         };
 
         buffer.storage.push(message);

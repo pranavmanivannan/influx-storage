@@ -36,3 +36,12 @@ pub struct RefreshBidAsk {
     pub asks: Vec<(f64, f64)>, //price, amount
     pub bids: Vec<(f64, f64)>, //price, amount
 }
+
+impl ExchangeEnum {
+    pub fn as_str(&self) -> &str {
+        match *self {
+            ExchangeEnum::Huobi => "Huobi",
+            ExchangeEnum::Binance => "Binance",
+        }
+    }
+}
