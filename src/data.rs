@@ -1,5 +1,6 @@
 /// A struct containing a DataEnum, ExchangeEnum, and SymbolEnum for storage classificaiton. It also
 /// holds the channel name within the exchange and the timestamp.
+
 pub struct DataPacket {
     pub data: DataEnum,
     pub exchange: ExchangeEnum,

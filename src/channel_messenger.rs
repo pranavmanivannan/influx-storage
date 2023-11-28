@@ -15,8 +15,7 @@ impl ChannelMessenger {
         }
     }
 
-    /// A custom send method which takes in data and send it to a channel. If unable to send to the channel,
-    /// it will print the error that occurs instead of panicking.
+    /// A custom send method which takes in data and send it to a channel
     pub fn send_data(&self, data: DataPacket) {
         match self.sender_endpoint.send(data) {
             Ok(_) => {}

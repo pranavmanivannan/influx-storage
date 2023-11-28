@@ -6,8 +6,8 @@ use std::env;
 use std::sync::mpsc;
 use std::time::SystemTime;
 
-const ORGANIZATION: &str = "devteam"; //replace with organization name
-const ORG_ID: &str = ""; //replace w org id
+const ORGANIZATION: &str = "devteam"; // replace with organization name
+const ORG_ID: &str = ""; // replace w org id
 
 /// A struct for setting a channel receiver endpoint and uploading the messages to data storage services.
 pub struct DataIngestor {
@@ -18,18 +18,15 @@ pub struct DataIngestor {
     pub buffer_capacity: usize,
 }
 
-/// A struct for making a buffer. It hold the buffer itself defined as a Vector of json values alongside
-/// a string for the table the buffer will push data to.
+/// A struct for making a buffer
 pub struct Buffer {
-    pub storage: Vec<String>, // there is definitely a better name for this than storage
-    pub bucket: String,
+    pub storage: Vec<String>, // buffer
+    pub bucket: String,       // bucketname
 }
 
-/// An implementation of DataIngestor with a constructor alongside methods for receiving messages from a channel
-/// and uploading a buffer to a data storage service.
+/// An implementation of DataIngestor w constructor and receiving/uploading methods
 impl DataIngestor {
-    /// Basic constructor for DataIngestor that takes in a Receiver<DataPacket> endpoint, a Buffers struct to hold the
-    /// buffers it will store messages in, and a buffer capacity.
+    /// Basic constructor for DataIngestor that takes in a Receiver<DataPacket> endpoint and buf_capacity
     pub fn new(endpoint: mpsc::Receiver<DataPacket>, buf_capacity: usize) -> DataIngestor {
         let client = reqwest::Client::new();
         DataIngestor {
@@ -41,8 +38,7 @@ impl DataIngestor {
         }
     }
 
-    /// A custom receive method which will receive messages and push them to the buffer. If the buffer reaches capacity,
-    /// then it will call upload_data() to push the buffer's messages to a data storage service.
+    /// A custom receive method which will receive messages and push to the buffer
     pub async fn receive_data(&mut self) {
         loop {
             match self.receiver_endpoint.recv() {
@@ -52,12 +48,11 @@ impl DataIngestor {
         }
     }
 
-    /// A separate function that sorts the datapackets and pushes it to the appropriate buffer. If the buffer is
-    /// full after pushing, it will upload the data to a data storage service then clear the buffer.
+    /// A separate function that sorts datapackets and pushes it to buffer
     async fn filter_buffer(&mut self, data_packet: DataPacket) {
-        let buffer: &mut Buffer = match (data_packet.exchange.as_str()) {
-            ("Binance") => &mut self.binance,
-            ("Huobi") => &mut self.huobi,
+        let buffer: &mut Buffer = match data_packet.exchange.as_str() {
+            "Binance" => &mut self.binance,
+            "Huobi" => &mut self.huobi,
             _ => return,
         };
 
@@ -101,16 +96,18 @@ impl DataIngestor {
 
         buffer.storage.push(message);
 
+        //push to influx if capacity is reached
         if buffer.storage.len() > self.buffer_capacity {
             match buffer.push_data(&self.client).await {
                 Ok(response_body) => {
                     println!("Successful Push");
                     buffer.storage.clear();
+
+                    //time for testing purpose
                     let input: DateTime<Utc> = Utc::now();
                     input.to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
                     let format = "%Y-%m-%d %H:%M:%S%.f %Z";
                     let mut output: String = "".to_owned();
-
                     match Utc.datetime_from_str(&input.to_string(), format) {
                         Ok(datetime) => {
                             output = datetime.to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
@@ -118,6 +115,7 @@ impl DataIngestor {
                         }
                         Err(e) => println!("Error parsing date-time: {}", e),
                     }
+
                     let _ = Buffer::query_data(
                         &self.client,
                         "2023-01-01T00:00:00Z".to_owned(),
@@ -126,6 +124,7 @@ impl DataIngestor {
                     )
                     .await;
                 }
+
                 Err(err) => {
                     eprintln!("Request failed: {:?}", err);
                 }
@@ -143,12 +142,10 @@ impl Buffer {
         }
     }
 
-    // start/end time: "2023-01-01T00:00:00Z";  RFC3339 format
-
     /// Queries an InfluxDB bucket to get timeseries data through an HTTP request.
     pub async fn query_data(
         client: &Client,
-        startdate: String,
+        startdate: String, // "2023-01-01T00:00:00Z";  RFC3339 format
         enddate: String,
         bucket_name: String,
     ) -> Result<(), Box<dyn std::error::Error>> {
