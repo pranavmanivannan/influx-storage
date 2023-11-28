@@ -15,10 +15,8 @@ async fn main() {
 
     let sender_handle = thread::spawn(move || loop {
         let data = DataEnum::MBP(MarketIncremental {
-            bestask: 100.0,
-            askamount: 100.0,
-            bestbid: 100.0,
-            bidamount: 100.0,
+            asks: vec![(100.0, 1.0), (101.0, 2.0), (102.0, 3.0)],
+            bids: vec![(98.0, 5.0), (97.0, 4.0), (96.0, 2.0)],
         });
 
         let data_packet = DataPacket {

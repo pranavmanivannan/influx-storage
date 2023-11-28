@@ -68,13 +68,11 @@ impl DataIngestor {
         let message = match data_packet.data {
             DataEnum::MBP(msg) => {
                 format!(
-                    "{}-{} bestask={},askamt={},bestbid={},bidamt={} {}",
+                    "{}-{} asks={:?},bids={:?} {}",
                     data_packet.channel.as_str(),
                     data_packet.symbol_pair.as_str(),
-                    msg.bestask,
-                    msg.askamount,
-                    msg.bestbid,
-                    msg.bidamount,
+                    msg.asks,
+                    msg.bids,
                     timestamp
                 )
             }

@@ -1,4 +1,20 @@
-///TODO: trade detail
+/// A struct containing a DataEnum, ExchangeEnum, and SymbolEnum for storage classificaiton. It also
+/// holds the channel name within the exchange and the timestamp.
+pub struct DataPacket {
+    pub data: DataEnum,
+    pub exchange: ExchangeEnum,
+    pub symbol_pair: SymbolEnum,
+    pub channel: String,
+    pub timestamp: i64,
+}
+
+/// An enum used to determine the type of data held within the sent DataPacket.
+pub enum DataEnum {
+    MBP(MarketIncremental),
+    RBA(RefreshBidAsk),
+}
+
+/// An enum used to determine which exchange the DataPacket received information from.
 pub enum ExchangeEnum {
     Huobi,
     Binance,
@@ -13,6 +29,7 @@ impl ExchangeEnum {
     }
 }
 
+/// An enum used to determine the symbol the DataPacket holds.
 pub enum SymbolEnum {
     BTCUSD,
     ETHUSD,
@@ -27,24 +44,9 @@ impl SymbolEnum {
     }
 }
 
-pub struct DataPacket {
-    pub data: DataEnum,
-    pub exchange: ExchangeEnum,
-    pub symbol_pair: SymbolEnum,
-    pub channel: String,
-    pub timestamp: i64,
-}
-
-pub enum DataEnum {
-    MBP(MarketIncremental),
-    RBA(RefreshBidAsk),
-}
-
 pub struct MarketIncremental {
-    pub bestask: f64,
-    pub askamount: f64,
-    pub bestbid: f64,
-    pub bidamount: f64,
+    pub asks: Vec<(f64, f64)>,
+    pub bids: Vec<(f64, f64)>,
 }
 
 pub struct RefreshBidAsk {
