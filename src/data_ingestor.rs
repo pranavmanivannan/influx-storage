@@ -12,10 +12,8 @@ const ORG_ID: &str = ""; //replace w org id
 pub struct DataIngestor {
     pub client: reqwest::Client,
     pub receiver_endpoint: mpsc::Receiver<DataPacket>,
-    pub binance_market: Buffer,
-    pub binance_trade: Buffer,
-    pub huobi_market: Buffer,
-    pub huobi_trade: Buffer,
+    pub binance: Buffer,
+    pub huobi: Buffer,
     pub buffer_capacity: usize,
 }
 
@@ -36,10 +34,8 @@ impl DataIngestor {
         DataIngestor {
             client: client,
             receiver_endpoint: endpoint,
-            binance_market: Buffer::new("bucket_test".to_string()),
-            binance_trade: Buffer::new("bucket_test".to_string()),
-            huobi_market: Buffer::new("bucket_test".to_string()),
-            huobi_trade: Buffer::new("bucket_test".to_string()),
+            binance: Buffer::new("Binance".to_string()),
+            huobi: Buffer::new("Huobi".to_string()),
             buffer_capacity: buf_capacity,
         }
     }
@@ -58,11 +54,9 @@ impl DataIngestor {
     /// A separate function that sorts the datapackets and pushes it to the appropriate buffer. If the buffer is
     /// full after pushing, it will upload the data to a data storage service then clear the buffer.
     async fn filter_buffer(&mut self, data_packet: DataPacket) {
-        let buffer: &mut Buffer = match (data_packet.exchange.as_str(), data_packet.channel.as_str()) {
-            ("Binance", "Market") => &mut self.binance_market,
-            ("Binance", "Trade") => &mut self.binance_trade,
-            ("Huobi", "Market") => &mut self.huobi_market,
-            ("Huobi", "Trade") => &mut self.huobi_trade,
+        let buffer: &mut Buffer = match (data_packet.exchange.as_str()) {
+            ("Binance") => &mut self.binance,
+            ("Huobi") => &mut self.huobi,
             _ => return,
         };
 
@@ -74,16 +68,26 @@ impl DataIngestor {
         let message = match data_packet.data {
             DataEnum::MBP(msg) => {
                 format!(
-                    "MBP, bestask={} askamt={} bestbid={} bidamt={} {}",
-                    msg.bestask, msg.askamount, msg.bestbid, msg.bidamount, timestamp
+                    "{}-{} bestask={},askamt={},bestbid={},bidamt={} {}",
+                    data_packet.channel.as_str(),
+                    data_packet.symbol_pair.as_str(),
+                    msg.bestask,
+                    msg.askamount,
+                    msg.bestbid,
+                    msg.bidamount,
+                    timestamp
                 )
-            },
+            }
             DataEnum::RBA(msg) => {
                 format!(
-                    "RBA, asks={:?} bids={:?} {}",
-                    msg.asks, msg.bids, timestamp
+                    "{}-{} asks={:?},bids={:?} {}",
+                    data_packet.channel.as_str(),
+                    data_packet.symbol_pair.as_str(),
+                    msg.asks,
+                    msg.bids,
+                    timestamp
                 )
-            },
+            }
         };
 
         buffer.storage.push(message);
@@ -96,8 +100,8 @@ impl DataIngestor {
                     let _ = Buffer::query_data(
                         &self.client,
                         "2023-01-01T00:00:00Z".to_owned(),
-                        "2023-01-02T00:00:00Z".to_owned(),
-                        "bucket_test".to_owned(),
+                        "2023-11-28T18:32:35.064556Z".to_owned(),
+                        "Binance".to_owned(),
                     )
                     .await;
                 }
@@ -118,8 +122,7 @@ impl Buffer {
         }
     }
 
-    // let start_time = "2023-01-01T00:00:00Z";  RFC3339 format
-    // let end_time = "2023-01-02T00:00:00Z";
+    // start/end time: "2023-01-01T00:00:00Z";  RFC3339 format
 
     /// Queries an InfluxDB bucket to get timeseries data through an HTTP request.
     pub async fn query_data(
@@ -184,6 +187,7 @@ impl Buffer {
         let organization = ORGANIZATION;
         let data = self.storage.join("\n");
         let bucket_name = &self.bucket;
+        print!("{}", data);
 
         let url = format!(
             "https://us-east-1-1.aws.cloud2.influxdata.com/api/v2/write?org={}&bucket={}",
