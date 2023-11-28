@@ -3,12 +3,25 @@ mod channel_messenger;
 mod data;
 mod data_ingestor;
 use channel_messenger::ChannelMessenger;
+use chrono::{DateTime, TimeZone, Utc};
 use data::*;
 use data_ingestor::DataIngestor;
 use std::{sync::mpsc, thread, time::Duration};
 
 #[tokio::main]
 async fn main() {
+    let input: DateTime<Utc> = Utc::now();
+    input.to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
+    let format = "%Y-%m-%d %H:%M:%S%.f %Z";
+
+    match Utc.datetime_from_str(&input.to_string(), format) {
+        Ok(datetime) => {
+            let output = datetime.to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
+            println!("Formatted date-time: {}", output);
+        }
+        Err(e) => println!("Error parsing date-time: {}", e),
+    }
+
     let (tx, rx) = mpsc::channel();
     let mut channel_messenger = ChannelMessenger::new(tx);
     let mut data_ingestor = DataIngestor::new(rx, 100);

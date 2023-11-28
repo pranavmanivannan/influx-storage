@@ -1,4 +1,5 @@
 use crate::data::{DataEnum, DataPacket};
+use chrono::{DateTime, TimeZone, Utc};
 use dotenv::dotenv;
 use reqwest::{self, Client};
 use std::env;
@@ -67,22 +68,32 @@ impl DataIngestor {
 
         let message = match data_packet.data {
             DataEnum::MBP(msg) => {
+                let asks_json =
+                    serde_json::to_string(&msg.asks).unwrap_or_else(|_| "[]".to_string());
+                let bids_json =
+                    serde_json::to_string(&msg.bids).unwrap_or_else(|_| "[]".to_string());
+
                 format!(
                     "{}-{} asks={:?},bids={:?} {}",
                     data_packet.channel.as_str(),
                     data_packet.symbol_pair.as_str(),
-                    msg.asks,
-                    msg.bids,
+                    asks_json,
+                    bids_json,
                     timestamp
                 )
             }
             DataEnum::RBA(msg) => {
+                let asks_json =
+                    serde_json::to_string(&msg.asks).unwrap_or_else(|_| "[]".to_string());
+                let bids_json =
+                    serde_json::to_string(&msg.bids).unwrap_or_else(|_| "[]".to_string());
+
                 format!(
                     "{}-{} asks={:?},bids={:?} {}",
                     data_packet.channel.as_str(),
                     data_packet.symbol_pair.as_str(),
-                    msg.asks,
-                    msg.bids,
+                    asks_json,
+                    bids_json,
                     timestamp
                 )
             }
@@ -95,10 +106,22 @@ impl DataIngestor {
                 Ok(response_body) => {
                     println!("Successful Push");
                     buffer.storage.clear();
+                    let input: DateTime<Utc> = Utc::now();
+                    input.to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
+                    let format = "%Y-%m-%d %H:%M:%S%.f %Z";
+                    let mut output: String = "".to_owned();
+
+                    match Utc.datetime_from_str(&input.to_string(), format) {
+                        Ok(datetime) => {
+                            output = datetime.to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
+                            println!("Formatted date-time: {}", output);
+                        }
+                        Err(e) => println!("Error parsing date-time: {}", e),
+                    }
                     let _ = Buffer::query_data(
                         &self.client,
                         "2023-01-01T00:00:00Z".to_owned(),
-                        "2023-11-28T18:32:35.064556Z".to_owned(),
+                        output,
                         "Binance".to_owned(),
                     )
                     .await;
