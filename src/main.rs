@@ -3,7 +3,6 @@ mod channel_messenger;
 mod data;
 mod data_ingestor;
 use channel_messenger::ChannelMessenger;
-use chrono::{DateTime, TimeZone, Utc};
 use data::*;
 use data_ingestor::DataIngestor;
 use std::{sync::mpsc, thread, time::Duration};
@@ -11,7 +10,7 @@ use std::{sync::mpsc, thread, time::Duration};
 #[tokio::main]
 async fn main() {
     let (tx, rx) = mpsc::channel();
-    let mut channel_messenger = ChannelMessenger::new(tx);
+    let channel_messenger = ChannelMessenger::new(tx);
     let mut data_ingestor = DataIngestor::new(rx, 100);
 
     let sender_handle = thread::spawn(move || loop {
