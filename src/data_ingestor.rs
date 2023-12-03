@@ -73,7 +73,7 @@ impl DataIngestor {
                     data_packet.symbol_pair.as_str(),
                     asks_json,
                     bids_json,
-                    timestamp
+                    data_packet.timestamp
                 )
             }
             DataEnum::RBA(msg) => {
@@ -100,6 +100,28 @@ impl DataIngestor {
                 Ok(()) => {
                     println!("Successful Push");
                     buffer.storage.clear();
+
+                    // //call query to test push
+                    // let input: DateTime<Utc> = Utc::now();
+                    // input.to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
+                    // let format = "%Y-%m-%d %H:%M:%S%.f %Z";
+                    // let mut output: String = "".to_owned();
+                    // match Utc.datetime_from_str(&input.to_string(), format) {
+                    //     Ok(datetime) => {
+                    //         output = datetime.to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
+                    //         println!("Formatted date-time: {}", output);
+                    //     }
+                    //     Err(e) => println!("Error parsing date-time: {}", e),
+                    // }
+
+                    // let _ = Buffer::query_data(
+                    //     &self.client,
+                    //     "2023-01-01T00:00:00Z".to_owned(),
+                    //     output,
+                    //     "Binance".to_owned(),
+                    // )
+                    // .await;
+                    // //end of testing
                 }
 
                 Err(err) => {
@@ -128,7 +150,6 @@ impl Buffer {
     ) -> Result<(), Box<dyn std::error::Error>> {
         dotenv().ok();
         let bucket_name = &bucket_name;
-
         let flux_query = "from(bucket: \"".to_owned()
             + bucket_name
             + "\")\n |> range(start: "
@@ -137,12 +158,10 @@ impl Buffer {
             + &enddate
             + ")";
         let api_token = env::var("API_TOKEN").expect("API_TOKEN must be set");
-
         let url = format!(
             "https://us-east-1-1.aws.cloud2.influxdata.com/api/v2/query?org={}",
             ORGANIZATION
         );
-
         let response = client
             .post(url)
             .header("Authorization", format!("Token {}", api_token))
